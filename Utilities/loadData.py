@@ -839,6 +839,10 @@ def loadTrackFile(configFile, trackFile, source, missingValue=0,
             raise
         time = getTime(year, month, day, hour, minute)
         penv = ltmPressure(jdays, time, lon, lat, ncfile)
+    if 'beta' in inputData.dtype.names:
+        beta = np.array(inputData['beta'], 'd')
+    else:
+        beta = np.ones(len(indicator)) * config.get('WindfieldInterface','beta')
 
     speed, bearing = getSpeedBearing(indicator, lon, lat, dt,
                                      missingValue=missingValue)
@@ -856,7 +860,7 @@ def loadTrackFile(configFile, trackFile, source, missingValue=0,
     for key, value in zip(trackFields, [indicator, TCID, year, month,
                                            day, hour, minute, timeElapsed, datetimes,
                                            lon, lat, speed, bearing,
-                                           pressure, windspeed, rmax, penv]):
+                                           pressure, windspeed, rmax, penv, beta]):
         data[key] = value
         
     tracks = []

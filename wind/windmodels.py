@@ -359,20 +359,35 @@ class HollandWindProfile(WindProfileModel):
         :rtype: :class:`numpy.ndarray`
         
         """
-         
+ 
         beta = self.beta
         delta = (self.rMax / R) ** beta
         edelta = np.exp(-delta)
 
-        Z = ((np.sqrt((self.dP * beta / self.rho) *
-             delta * edelta + (R * self.f / 2.) ** 2)) / R -
-             np.abs(self.f) + edelta *
-             (2 * (beta ** 2) * self.dP * (delta - 1) * delta +
-              self.rho * edelta * (self.f * R) ** 2) /
-             (2 * self.rho * R *
-              np.sqrt(4 * (beta * self.dP / self.rho) * delta * edelta
-                      + (self.f * R) ** 2)))
+        #Z = ((np.sqrt((self.dP * beta / self.rho) *
+        #     delta * edelta + (R * self.f / 2.) ** 2)) / R -
+        #     np.abs(self.f) + edelta *
+        #     (2 * (beta ** 2) * self.dP * (delta - 1) * delta +
+        #      self.rho * edelta * (self.f * R) ** 2) /
+        #     (2 * self.rho * R *
+        #      np.sqrt(4 * (beta * self.dP / self.rho) * delta * edelta
+        #              + (self.f * R) ** 2)))
 
+
+        n1 = np.sqrt((beta * self.dP / self.rho ) * delta * edelta -
+                     (R * np.abs(self.f) / 2. ) ** 2)
+        n2 = (((beta ** 2) * self.dP / (self.rho * R)) * (delta ** 2) * edelta -
+              ((beta ** 2) * self.dP / (self.rho * R)) * delta * edelta +
+               (np.abs(self.f) ** 2) * R / 2.)
+        d2 = 2. * np.sqrt((beta * self.dP / self.rho ) * delta * edelta -
+                          (R * np.abs(self.f) / 2. ) ** 2)
+
+        Z = (1./R) * (n1 + R * ((n2 / d2) - (np.abs(self.f) / 2.)) / d2 - np.abs(self.f) * R / 2.)
+
+        #nn1 = np.sqrt((4.*beta*self.dP/self.rho) * delta * edelta + (self.f * R) ** 2.)
+        #nn2 = (beta*self.dP/self.rho)*delta*(2. + beta * (delta - 1.)) * edelta + (self.f * R) ** 2.
+        #dd2 = R + 4.*(beta*self.dP/self.rho) * delta * edelta + (self.f * R) ** 2.
+        #Z = -self.f + nn1 * (nn2 / dd2)
         # Calculate first and second derivatives at R = Rmax:
         d2Vm = self.secondDerivative()
         aa = ((d2Vm / 2 - (-1.0 *  self.vMax /
@@ -383,6 +398,7 @@ class HollandWindProfile(WindProfileModel):
         icore = np.where(R <= self.rMax)
         Z[icore] = R[icore] * (R[icore] * 4 * aa + 3 * bb) + 2 * cc
         Z = np.sign(self.f) * Z
+        log.debug("Vorticity: {0}, {1}".format(Z.min(), Z.max()))
         return Z
 
 
@@ -1007,6 +1023,7 @@ class KepertWindField(WindFieldModel):
         
         V = self.velocity(R)
         Z = self.vorticity(R)
+        
         K = 50.  # Diffusivity
         Cd = 0.002  # Constant drag coefficient
         
@@ -1021,7 +1038,7 @@ class KepertWindField(WindFieldModel):
         if self.f > 0:
             gam *= -1.
         albe = np.sqrt(al / be)
-
+                
         ind = np.where(np.abs(gam) > np.sqrt(al * be))
         chi = (Cd / K) * V / np.sqrt(np.sqrt(al * be))
         eta = (Cd / K) * V / np.sqrt(np.sqrt(al * be) + np.abs(gam))

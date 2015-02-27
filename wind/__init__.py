@@ -51,12 +51,12 @@ import Utilities.nctools as nctools
 DATEFORMAT = "%Y-%m-%d %H:%M:%S"
 TRACKFILE_COLS = ('CycloneNumber', 'Datetime', 'TimeElapsed', 'Longitude',
                   'Latitude', 'Speed', 'Bearing', 'CentralPressure',
-                  'EnvPressure', 'rMax')
+                  'EnvPressure', 'rMax', 'beta')
 
 TRACKFILE_UNIT = ('', '', 'hr', 'degree', 'degree', 'kph', 'degrees',
-                  'hPa', 'hPa', 'km')
+                  'hPa', 'hPa', 'km', '')
 
-TRACKFILE_FMTS = ('i', 'object', 'f', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+TRACKFILE_FMTS = ('i', 'object', 'f', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
 
 TRACKFILE_CNVT = {
     0: lambda s: int(float(s.strip() or 0)),
@@ -179,7 +179,6 @@ class WindfieldAroundTrack(object):
         self.track = track
         self.profileType = profileType
         self.windFieldType = windFieldType
-        self.beta = beta
         self.beta1 = beta1
         self.beta2 = beta2
         self.thetaMax = math.radians(thetaMax)
@@ -230,7 +229,7 @@ class WindfieldAroundTrack(object):
                             self.track.rMax[i],
                             self.track.Latitude[i],
                             self.track.Longitude[i],
-                            self.beta, beta1=self.beta1,
+                            self.track.beta[i], beta1=self.beta1,
                             beta2=self.beta2)
         try:
             pressure = getattr(p, self.profileType)
@@ -254,13 +253,14 @@ class WindfieldAroundTrack(object):
         rMax = self.track.rMax[i]
         vFm = self.track.Speed[i]
         thetaFm = self.track.Bearing[i]
+        beta = self.track.beta[i]
         thetaMax = self.thetaMax
 
         #FIXME: temporary way to do this
         cls = windmodels.profile(self.profileType)
         params = windmodels.profileParams(self.profileType)
         values = [getattr(self, p) for p in params if hasattr(self, p)]
-        profile = cls(lat, lon, eP, cP, rMax, *values)
+        profile = cls(lat, lon, eP, cP, rMax, beta, *values)
 
         R, theta = self.polarGridAroundEye(i)
 
@@ -273,6 +273,8 @@ class WindfieldAroundTrack(object):
         windfield = cls(profile, *values)
 
         Ux, Vy = windfield.field(R, theta, vFm, thetaFm,  thetaMax)
+
+        log.debug("UU: {0}, VV: {1}".format(Ux.max(), Vy.max()))
 
         return (Ux, Vy, P)
 
@@ -364,7 +366,6 @@ class WindfieldAroundTrack(object):
             localBearing = ((np.arctan2(-Ux, -Vy)) * 180. / np.pi)
 
             # Handover this time step to a callback if required
-
             if timeStepCallback is not None:
                 timeStepCallback(self.track.Datetime[i],
                                  localGust, Ux, Vy, P,
@@ -432,7 +433,7 @@ class WindfieldGenerator(object):
 
     def __init__(self, config, margin=2.0, resolution=0.05,
                  profileType='powell', windFieldType='kepert',
-                 beta=1.5, beta1=1.5, beta2=1.4,
+                 beta1=1.5, beta2=1.4,
                  thetaMax=70.0, gridLimit=None, domain='bounded'):
 
         self.config = config
@@ -440,7 +441,6 @@ class WindfieldGenerator(object):
         self.resolution = resolution
         self.profileType = profileType
         self.windFieldType = windFieldType
-        self.beta = beta
         self.beta1 = beta1
         self.beta2 = beta2
         self.thetaMax = thetaMax
@@ -487,7 +487,6 @@ class WindfieldGenerator(object):
         wt = WindfieldAroundTrack(track,
                                   profileType=self.profileType,
                                   windFieldType=self.windFieldType,
-                                  beta=self.beta,
                                   beta1=self.beta1,
                                   beta2=self.beta2,
                                   thetaMax=self.thetaMax,
@@ -755,8 +754,7 @@ class WindfieldGenerator(object):
             'track_file': trackfile,
             'track_file_date': trackfileDate,
             'radial_profile': self.profileType,
-            'boundary_layer': self.windFieldType,
-            'beta': self.beta}
+            'boundary_layer': self.windFieldType}
 
         # Add configuration settings to global attributes:
         for section in self.config.sections():
@@ -1056,7 +1054,6 @@ def run(configFile, callback=None):
     outputPath = config.get('Output', 'Path')
     profileType = config.get('WindfieldInterface', 'profileType')
     windFieldType = config.get('WindfieldInterface', 'windFieldType')
-    beta = config.getfloat('WindfieldInterface', 'beta')
     beta1 = config.getfloat('WindfieldInterface', 'beta1')
     beta2 = config.getfloat('WindfieldInterface', 'beta2')
     thetaMax = config.getfloat('WindfieldInterface', 'thetaMax')
@@ -1105,7 +1102,6 @@ def run(configFile, callback=None):
                              resolution=resolution,
                              profileType=profileType,
                              windFieldType=windFieldType,
-                             beta=beta,
                              beta1=beta1,
                              beta2=beta2,
                              thetaMax=thetaMax,

@@ -8,17 +8,17 @@ from datetime import datetime
 trackFields = ('Indicator', 'CycloneNumber', 'Year', 'Month', 
                'Day', 'Hour', 'Minute', 'TimeElapsed', 'Datetime', 'Longitude',
                'Latitude', 'Speed', 'Bearing', 'CentralPressure',
-               'WindSpeed', 'rMax', 'EnvPressure')
+               'WindSpeed', 'rMax', 'EnvPressure', 'beta')
 
 trackTypes = ('i', 'i', 'i', 'i', 
               'i', 'i', 'i', 'f', datetime,
               'f', 'f', 'f', 'f', 'f', 
-              'f', 'f', 'f')
+              'f', 'f', 'f', 'f')
 
 trackFormats = ('%i, %i, %i, %i,' 
                 '%i, %i, %i, %5.1f,' '%s',
                 '%8.3f, %8.3f, %6.2f, %6.2f, %7.2f,'
-                '%6.2f, %6.2f, %7.2f')
+                '%6.2f, %6.2f, %7.2f', '%7.2f')
                 
 
 
