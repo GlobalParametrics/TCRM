@@ -44,9 +44,11 @@ from os.path import join as pjoin, dirname, realpath, isdir
 
 from osgeo import osr, gdal
 from osgeo.gdalconst import *
+from functools import reduce
 
 
 gdal.UseExceptions()
+
 
 def timer(f):
     """
@@ -59,13 +61,14 @@ def timer(f):
 
         tottime = time.time() - t1
         msg = "%02d:%02d:%02d " % \
-          reduce(lambda ll, b : divmod(ll[0], b) + ll[1:],
-                        [(tottime,), 60, 60])
+            reduce(lambda ll, b: divmod(ll[0], b) + ll[1:],
+                   [(tottime,), 60, 60])
 
-        log.info("Time for {0}: {1}".format(f.func_name, msg) )
+        log.info("Time for {0}: {1}".format(f.func_name, msg))
         return res
 
     return wrap
+
 
 def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     """
@@ -98,11 +101,11 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     else:
         driver = gdal.GetDriverByName('MEM')
         tempRaster = driver.Create('', cols, rows, 1, GDT_Float32)
-        
+
     tempRaster.SetGeoTransform((originX, dx, 0,
                                 originY, 0, dy))
     tempBand = tempRaster.GetRasterBand(1)
-    tempBand.WriteArray(array[::np.sign(dy)*1])
+    tempBand.WriteArray(array[::np.sign(dy) * 1])
     tempBand.SetNoDataValue(nodata)
     tempRasterSRS = osr.SpatialReference()
     tempRasterSRS.ImportFromEPSG(epsg)
@@ -113,17 +116,18 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     tempBand.FlushCache()
     return tempRaster
 
+
 def loadRasterFile(raster_file, fill_value=1):
     """
     Load a raster file and return the data as a :class:`numpy.ndarray`.
     No prorjection information is returned, just the actual data as an
-    array. 
+    array.
 
     :param str raster_file: Path to the raster file to load.
     :param fill_value: Value to replace `nodata` values with (default=1).
     :returns: 2-d array of the data values.
     :rtype: :class:`numpy.ndarray`
-    
+
     """
 
     log.debug("Loading raster data from {0} into array".format(raster_file))
@@ -136,6 +140,7 @@ def loadRasterFile(raster_file, fill_value=1):
     del ds
     return data
 
+
 def calculateBearing(uu, vv):
     """
     Calculate the wind direction from the u (eastward) and v
@@ -147,11 +152,12 @@ def calculateBearing(uu, vv):
     :returns: Direction of the vector, zero northwards, positive
               clockwise, in degrees.
     :rtype: :class:`numpy.ndarray`
-    
+
     """
-    bearing = 2*np.pi - (np.arctan2(-vv, -uu) - np.pi/2)
-    bearing = (180./np.pi) * np.mod(bearing, 2.*np.pi)
+    bearing = 2 * np.pi - (np.arctan2(-vv, -uu) - np.pi / 2)
+    bearing = (180. / np.pi) * np.mod(bearing, 2. * np.pi)
     return bearing
+
 
 @timer
 def reprojectDataset(src_file, match_filename, dst_filename,
@@ -173,8 +179,8 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     log.debug("Reprojecting {0}".format(repr(src_file)))
     log.debug("Match raster: {0}".format(repr(match_filename)))
     log.debug("Output raster: {0}".format(dst_filename))
-    
-    if type(src_file) == str:
+
+    if isinstance(src_file, str):
         src = gdal.Open(src_file, GA_ReadOnly)
     else:
         src = src_file
@@ -182,11 +188,11 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     src_geotrans = src.GetGeoTransform()
 
     # We want a section of source that matches this:
-    if type(match_filename) == str:
+    if isinstance(match_filename, str):
         match_ds = gdal.Open(match_filename, GA_ReadOnly)
     else:
         match_ds = match_filename
- 
+
     if match_projection:
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(match_projection)
@@ -196,25 +202,25 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     match_geotrans = match_ds.GetGeoTransform()
     wide = match_ds.RasterXSize
     high = match_ds.RasterYSize
- 
+
     # Output / destination
     drv = gdal.GetDriverByName('GTiff')
     dst = drv.Create(dst_filename, wide, high, 1, GDT_Float32)
     dst.SetGeoTransform(match_geotrans)
     dst.SetProjection(match_proj)
- 
+
     # Do the work
     gdal.ReprojectImage(src, dst, src_proj, match_proj, resampling_method)
- 
-    del dst # Flush
-    if type(match_filename) == str:
+
+    del dst  # Flush
+    if isinstance(match_filename, str):
         del match_ds
-    if type(src_file) == str:
+    if isinstance(src_file, str):
         del src
-        
+
     return
- 
- 
+
+
 @timer
 def main(config_file):
     """
@@ -224,38 +230,38 @@ def main(config_file):
     :param str configFile: Path to configuration file.
 
     """
-    
+
     config = ConfigParser()
     config.read(config_file)
     input_path = config.get('Input', 'Path')
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, 'gust.interp.nc')
     multiplier_path = config.get('Input', 'Multipliers')
- 
+
     # Load the wind data:
     log.info("Loading regional wind data from {0}".format(ncfile))
     ncobj = Dataset(ncfile, 'r')
- 
+
     lat = ncobj.variables['lat'][:]
     lon = ncobj.variables['lon'][:]
- 
+
     delta = lon[1] - lon[0]
-    lon = lon - delta/2.
-    lat = lat - delta/2.
- 
+    lon = lon - delta / 2.
+    lat = lat - delta / 2.
+
     # Wind speed:
     wspd = ncobj.variables['vmax'][:]
- 
+
     # Components:
     uu = ncobj.variables['ua'][:]
     vv = ncobj.variables['va'][:]
- 
-    bearing = calculateBearing(uu, vv) 
- 
+
+    bearing = calculateBearing(uu, vv)
+
     # Load a multiplier file to determine the projection:
     m4_max_file = pjoin(multiplier_path, 'm4_max.img')
     log.info("Using M4 data from {0}".format(m4_max_file))
-    
+
     # Reproject the wind speed and bearing data:
     wind_raster_file = pjoin(windfield_path, 'region_wind.tif')
     wind_raster = createRaster(wspd, lon, lat, delta, -delta,
@@ -263,25 +269,25 @@ def main(config_file):
     bear_raster = createRaster(bearing, lon, lat, delta, -delta)
     uu_raster = createRaster(uu, lon, lat, delta, -delta)
     vv_raster = createRaster(vv, lon, lat, delta, -delta)
-    
-    log.info("Reprojecting regional wind data") 
+
+    log.info("Reprojecting regional wind data")
     wind_prj_file = pjoin(windfield_path, 'gust_prj.tif')
     bear_prj_file = pjoin(windfield_path, 'bear_prj.tif')
     uu_prj_file = pjoin(windfield_path, 'uu_prj.tif')
     vv_prj_file = pjoin(windfield_path, 'vv_prj.tif')
-    
+
     wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file,
-                                match_projection=32756) 
+                                match_projection=32756)
     bear_prj = reprojectDataset(bear_raster, m4_max_file, bear_prj_file,
                                 resampling_method=GRA_NearestNeighbour,
                                 match_projection=32756)
     uu_prj = reprojectDataset(uu_raster, m4_max_file, uu_prj_file,
-                                resampling_method=GRA_NearestNeighbour,
-                                match_projection=32756) 
+                              resampling_method=GRA_NearestNeighbour,
+                              match_projection=32756)
     vv_prj = reprojectDataset(vv_raster, m4_max_file, vv_prj_file,
-                                resampling_method=GRA_NearestNeighbour,
-                                match_projection=32756)
-     
+                              resampling_method=GRA_NearestNeighbour,
+                              match_projection=32756)
+
     wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
     wind_prj = wind_prj_ds.GetRasterBand(1)
     bear_prj_ds = gdal.Open(bear_prj_file, GA_ReadOnly)
@@ -292,16 +298,16 @@ def main(config_file):
     vv_prj = vv_prj_ds.GetRasterBand(1)
     wind_proj = wind_prj_ds.GetProjection()
     wind_geot = wind_prj_ds.GetGeoTransform()
- 
+
     wind_data = wind_prj.ReadAsArray()
     bear_data = bear_prj.ReadAsArray()
     uu_data = uu_prj.ReadAsArray()
     vv_data = vv_prj.ReadAsArray()
     bearing = calculateBearing(uu_data, vv_data)
- 
+
     # The local wind speed array:
     local = np.zeros(wind_data.shape, dtype='float32')
- 
+
     indices = {
         0: {'dir': 'n', 'min': 0., 'max': 22.5},
         1: {'dir': 'ne', 'min': 22.5, 'max': 67.5},
@@ -312,7 +318,7 @@ def main(config_file):
         6: {'dir': 'w', 'min': 247.5, 'max': 292.5},
         7: {'dir': 'nw', 'min': 292.5, 'max': 337.5},
         8: {'dir': 'n', 'min': 337.5, 'max': 360.}
-        }
+    }
     log.info("Processing all directions")
     for i in indices.keys():
         dn = indices[i]['dir']
@@ -323,26 +329,26 @@ def main(config_file):
                        (bear_data < indices[i]['max']))
 
         local[idx] = wind_data[idx] * m4[idx]
- 
- 
+
     rows, cols = local.shape
     output_file = pjoin(windfield_path, 'local_wind.tif')
     log.info("Creating output file: {0}".format(output_file))
     # Save the local wind field to a raster file with the SRS of the
-    # multipliers 
+    # multipliers
     drv = gdal.GetDriverByName("GTiff")
-    dst_ds = drv.Create(output_file, cols, rows, 1, 
+    dst_ds = drv.Create(output_file, cols, rows, 1,
                         GDT_Float32, ['BIGTIFF=YES'])
     dst_ds.SetGeoTransform(wind_geot)
     dst_ds.SetProjection(wind_proj)
     dst_band = dst_ds.GetRasterBand(1)
     dst_band.WriteArray(local)
- 
-    #dst_band.FlushCache()
-    
+
+    # dst_band.FlushCache()
+
     del dst_ds
     log.info("Completed")
- 
+
+
 def startup():
     """
     Parse command line arguments and call the :func:`main` function.
@@ -356,37 +362,37 @@ def startup():
     parser.add_argument('-d', '--debug', help='Allow pdb traces',
                         action='store_true')
     args = parser.parse_args()
- 
+
     configFile = args.config_file
     config = ConfigParser()
     config.read(configFile)
- 
+
     rootdir = pathLocator.getRootDirectory()
     os.chdir(rootdir)
- 
+
     logfile = config.get('Logging', 'LogFile')
     logdir = dirname(realpath(logfile))
- 
+
     # If log file directory does not exist, create it
     if not isdir(logdir):
         try:
             os.makedirs(logdir)
         except OSError:
             logfile = pjoin(os.getcwd(), 'processMultipliers.log')
- 
+
     logLevel = config.get('Logging', 'LogLevel')
     verbose = config.getboolean('Logging', 'Verbose')
     datestamp = config.getboolean('Logging', 'Datestamp')
     debug = False
- 
+
     if args.verbose:
         verbose = True
- 
+
     if args.debug:
         debug = True
- 
+
     flStartLog(logfile, logLevel, verbose, datestamp)
-    
+
     if debug:
         main(configFile)
     else:
@@ -397,6 +403,6 @@ def startup():
             tblines = traceback.format_exc().splitlines()
             for line in tblines:
                 log.critical(line.lstrip())
-                
+
 if __name__ == "__main__":
     startup()
