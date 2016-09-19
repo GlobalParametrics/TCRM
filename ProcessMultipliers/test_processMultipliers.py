@@ -30,7 +30,7 @@ class TestProcessMultipliers(unittest.TestCase):
         self.dx = 1
         self.dy = -1
         self.testRasterFile = "testRaster.tif"
-        self.reprojectRaster = "testReprojection.tif"
+        self.reprojectRaster = "testReprojection.tif" # is this used?
         self.projectedDataset = pM.createRaster(np.ones((2000, 5000)),
                                                 np.arange(15000, 55000, 20),
                                                 np.arange(20000, 120000, 20),
