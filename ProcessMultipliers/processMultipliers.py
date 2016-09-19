@@ -40,7 +40,7 @@ from Utilities import pathLocator
 from netCDF4 import Dataset
 
 import numpy as np
-from os.path import join as pjoin, dirname, realpath, isdir
+from os.path import join as pjoin, dirname, realpath, isdir, abspath
 
 from osgeo import osr, gdal
 from osgeo.gdalconst import *
@@ -234,8 +234,12 @@ def main(config_file):
     config = ConfigParser()
     config.read(config_file)
     input_path = config.get('Input', 'Path')
+    try:
+        gust_file = config.get('Input', 'Gust_file')
+    except:
+        gust_file = 'gust.interp.nc'
     windfield_path = pjoin(input_path, 'windfield')
-    ncfile = pjoin(windfield_path, 'gust.interp.nc')
+    ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
 
     # Load the wind data:
