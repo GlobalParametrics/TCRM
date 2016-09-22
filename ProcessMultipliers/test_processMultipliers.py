@@ -41,13 +41,22 @@ class TestProcessMultipliers(unittest.TestCase):
         self.bearing = np.array([45., 315., 225., 135.])
 
     def test_createRaster(self):
-        """Test crateRaster returns a gdal dataset"""
+        """Test createRaster returns a gdal dataset"""
 
         result = pM.createRaster(self.array, self.x, self.y,
                                  self.dx, self.dy,
                                  filename=self.testRasterFile)
         self.assertEqual(type(result), gdal.Dataset)
         assert exists(self.testRasterFile)
+
+    def test_createRasterII(self):
+        """Test can create img files"""
+        file_is = 'test.img'
+        result = pM.createRaster(self.array, self.x, self.y,
+                                 self.dx, self.dy,
+                                 filename=file_is)
+        self.assertEqual(type(result), gdal.Dataset)
+        assert exists(file_is)
 
     def test_loadRasterFile(self):
         """Test loadRasterFile correctly loads data"""
