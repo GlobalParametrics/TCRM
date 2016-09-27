@@ -8,14 +8,17 @@ import sys
 import os
 from os.path import join as pjoin, exists
 import unittest
+import tempfile
+
 from numpy.testing import assert_almost_equal
 import numpy as np
 
 from osgeo import osr, gdal
 from osgeo.gdalconst import *
+from netCDF4 import Dataset
 
 import processMultipliers as pM
-
+from pathLocator import getRootDirectory
 
 class TestProcessMultipliers(unittest.TestCase):
 
@@ -93,6 +96,61 @@ class TestProcessMultipliers(unittest.TestCase):
         # Check values are correctly mapped:
 
         del prjDataset
+
+    def test_reprojectDataset_same_nc_img(self):
+        """Test a dataset is correctly reprojected"""
+        # Write a .nc file to test
+        f_nc = tempfile.NamedTemporaryFile(suffix='.nc',
+                                        prefix='test_processMultipliers',
+                                        delete=False)
+        f_nc.close()
+
+
+        # Write an .img file to test
+        f_img = tempfile.NamedTemporaryFile(suffix='.img',
+                                        prefix='test_processMultipliers',
+                                        delete=False)
+        f_img.close()
+
+        multiplier_name = 'vmax' # what the?
+        lat = np.asarray([ -23, -20, -17, -14, -11, -8, -5])
+        lon = np.asarray([137, 140, 143, 146, 149, 152, 155, 158])
+        dx = dy = 3
+        multiplier_values = np.zeros(([lon.shape[0], lat.shape[0]]))
+
+        multiplier_values.fill(42.5)
+        #save_multiplier(multiplier_name, multiplier_values, lat,
+         #               lon, f_nc.name)
+
+        pM.createRaster(multiplier_values, lon, lat,
+                        dx, dy,
+                        filename=f_img.name)
+
+        m4_max_file = f_img.name
+        # pulling out a section of the processMultipliers.main
+        ncobj = Dataset(f_nc.name, 'r')
+
+        lat = ncobj.variables['lat'][:]
+        lon = ncobj.variables['lon'][:]
+
+        delta = lon[1] - lon[0]
+        lon = lon - delta / 2.
+        lat = lat - delta / 2.
+
+        # Wind speed:
+        wspd = ncobj.variables['vmax'][:]
+        wind_raster_file = 'region_wind.tif'
+        wind_prj_file = 'gust_prj.tif'
+
+        wind_raster = pM.createRaster(wspd, lon, lat, delta, -delta,
+                                   filename=wind_raster_file)
+        wind_prj = pM.reprojectDataset(wind_raster, m4_max_file,
+                                       wind_prj_file,
+                                       match_projection=32756)
+
+        os.remove(f_nc.name)
+        os.remove(f_img.name)
+
 
 if __name__ == "__main__":
     unittest.main()
