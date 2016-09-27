@@ -518,7 +518,10 @@ class WindfieldGenerator(object):
         """
         lat, lon, speed, Vx, Vy, P = result
 
-        trackfileDate = flModDate(trackfile)
+        if trackfile == None:
+            trackfileDate = 'XXX'
+        else:
+            trackfileDate = flModDate(trackfile)
 
         gatts = {
             'title': 'TCRM hazard simulation - synthetic event wind field',
