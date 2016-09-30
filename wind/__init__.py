@@ -534,11 +534,14 @@ class WindfieldGenerator(object):
             'beta': self.beta}
 
         # Add configuration settings to global attributes:
-        for section in self.config.sections():
-            for option in self.config.options(section):
-                key = "{0}_{1}".format(section, option)
-                value = self.config.get(section, option)
-                gatts[key] = value
+        if self.config == None:
+            gatts = {}
+        else:
+            for section in self.config.sections():
+                for option in self.config.options(section):
+                    key = "{0}_{1}".format(section, option)
+                    value = self.config.get(section, option)
+                    gatts[key] = value
 
         dimensions = {
             0: {

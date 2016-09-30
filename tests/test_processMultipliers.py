@@ -17,8 +17,17 @@ from osgeo import osr, gdal
 from osgeo.gdalconst import *
 from netCDF4 import Dataset
 
-import processMultipliers as pM
-from pathLocator import getRootDirectory
+try:
+    import pathLocate
+except:
+    from unittests import pathLocate
+
+# Add parent folder to python path
+unittest_dir = pathLocate.getUnitTestDirectory()
+sys.path.append(pathLocate.getRootDirectory())
+from wind import WindfieldGenerator
+from ProcessMultipliers import processMultipliers as pM
+
 
 class TestProcessMultipliers(unittest.TestCase):
 
@@ -112,17 +121,22 @@ class TestProcessMultipliers(unittest.TestCase):
                                         delete=False)
         f_img.close()
 
-        multiplier_name = 'vmax' # what the?
         lat = np.asarray([ -23, -20, -17, -14, -11, -8, -5])
         lon = np.asarray([137, 140, 143, 146, 149, 152, 155, 158])
-        dx = dy = 3
-        multiplier_values = np.zeros(([lon.shape[0], lat.shape[0]]))
+        speed = np.zeros(([lon.shape[0], lat.shape[0]]))
+        dx = dy = 3.0
+        speed.fill(42.5)
 
-        multiplier_values.fill(42.5)
-        #save_multiplier(multiplier_name, multiplier_values, lat,
-         #               lon, f_nc.name)
+        # doing this just to get values in
+        Vx = Vy = P = speed
 
-        pM.createRaster(multiplier_values, lon, lat,
+        result = lat, lon, speed, Vx, Vy, P
+        wg = WindfieldGenerator(None)
+        wg.saveGustToFile(None, result, f_nc.name)
+        # nctools.ncSaveGrid(multiplier_name, multiplier_values, lat,
+        #               lon, f_nc.name)
+
+        pM.createRaster(speed, lon, lat,
                         dx, dy,
                         filename=f_img.name)
 
@@ -144,12 +158,33 @@ class TestProcessMultipliers(unittest.TestCase):
 
         wind_raster = pM.createRaster(wspd, lon, lat, delta, -delta,
                                    filename=wind_raster_file)
-        wind_prj = pM.reprojectDataset(wind_raster, m4_max_file,
-                                       wind_prj_file,
-                                       match_projection=32756)
+        pM.reprojectDataset(wind_raster, m4_max_file,
+                            wind_prj_file,
+                            match_projection=32756)
 
-        os.remove(f_nc.name)
-        os.remove(f_img.name)
+        wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
+        wind_prj = wind_prj_ds.GetRasterBand(1)
+        wind_proj = wind_prj_ds.GetProjection()
+        wind_geot = wind_prj_ds.GetGeoTransform()
+
+        wind_data = wind_prj.ReadAsArray()
+
+        # The info here is correct.
+        #print "img data", pM.loadRasterFile(f_img.name)
+
+        print "f_nc.name", f_nc.name
+        print "f_img.name", f_img.name
+
+        assert_almost_equal(wind_data, speed)
+
+        keep = False
+
+        if keep:
+            print "f_nc.name", f_nc.name
+            print "f_img.name", f_img.name
+        else:
+            os.remove(f_nc.name)
+            os.remove(f_img.name)
 
 
 if __name__ == "__main__":
