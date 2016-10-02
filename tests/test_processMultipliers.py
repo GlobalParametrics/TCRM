@@ -158,14 +158,17 @@ class TestProcessMultipliers(unittest.TestCase):
 
         wind_raster = pM.createRaster(wspd, lon, lat, delta, -delta,
                                    filename=wind_raster_file)
+        # This shows that the right data is going in
+        src_data = wind_raster.GetRasterBand(1).ReadAsArray()
+        m4_max = gdal.Open(m4_max_file, GA_ReadOnly)
+        m4_max_data = m4_max.GetRasterBand(1).ReadAsArray()
+
         pM.reprojectDataset(wind_raster, m4_max_file,
-                            wind_prj_file,
-                            match_projection=32756)
+                            wind_prj_file ) #,
+                            # match_projection=32756)
 
         wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
         wind_prj = wind_prj_ds.GetRasterBand(1)
-        wind_proj = wind_prj_ds.GetProjection()
-        wind_geot = wind_prj_ds.GetGeoTransform()
 
         wind_data = wind_prj.ReadAsArray()
 
