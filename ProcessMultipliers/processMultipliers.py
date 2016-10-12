@@ -40,7 +40,7 @@ from Utilities import pathLocator
 from netCDF4 import Dataset
 
 import numpy as np
-from os.path import join as pjoin, dirname, realpath, isdir, abspath
+from os.path import join as pjoin, dirname, realpath, isdir, abspath, splitext
 
 from osgeo import osr, gdal
 from osgeo.gdalconst import *
@@ -94,9 +94,13 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     log.debug("Creating in-memory raster")
     rows, cols = array.shape
     originX, originY = x[0], y[-1]
-
     if filename:
+        _, ext = splitext(filename)
+    if filename and ext=='.tif':
         driver = gdal.GetDriverByName('GTiff')
+        tempRaster = driver.Create(filename, cols, rows, 1, GDT_Float32)
+    elif filename and ext=='.img':
+        driver = gdal.GetDriverByName('HFA')
         tempRaster = driver.Create(filename, cols, rows, 1, GDT_Float32)
     else:
         driver = gdal.GetDriverByName('MEM')

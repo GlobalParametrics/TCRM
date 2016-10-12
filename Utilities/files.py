@@ -289,11 +289,13 @@ def flModDate(filename, dateformat='%Y-%m-%d %H:%M:%S'):
     """
     try:
         si = os.stat(filename)
+        moddate = localtime(si.st_mtime)
     except (IOError, WindowsError):
         LOGGER.exception('Input file is not a valid file: %s' % (filename))
         raise IOError('Input file is not a valid file: %s' % (filename))
-    moddate = localtime(si.st_mtime)
-
+    except (OSError):
+        LOGGER.exception('Input file is not a valid file: %s' % (filename))
+        moddate = (1,2,3,4,5,6,7,8,9)
     return strftime(dateformat, moddate)
 
 
