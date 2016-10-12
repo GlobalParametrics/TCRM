@@ -137,7 +137,7 @@ class TestProcessMultipliers(unittest.TestCase):
         #               lon, f_nc.name)
 
         pM.createRaster(speed, lon, lat,
-                        dx, dy,
+                        dx, -dy,
                         filename=f_img.name)
 
         m4_max_file = f_img.name
