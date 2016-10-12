@@ -91,7 +91,10 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     :type  filename: str or None
 
     """
-    log.debug("Creating in-memory raster")
+    if filename:
+        log.debug("Creating raster: {0}".format(filename))
+    else:
+        log.debug("Creating in-memory raster")
     rows, cols = array.shape
     originX, originY = x[0], y[-1]
     if filename:
