@@ -109,6 +109,7 @@ class TestProcessMultipliers(unittest.TestCase):
     def test_reprojectDataset_same_nc_img(self):
         """Test a dataset is correctly reprojected"""
         # Write a .nc file to test
+        # This is the gust file
         f_nc = tempfile.NamedTemporaryFile(suffix='.nc',
                                         prefix='test_processMultipliers',
                                         delete=False)
@@ -116,6 +117,7 @@ class TestProcessMultipliers(unittest.TestCase):
 
 
         # Write an .img file to test
+        #This is the multiplier file
         f_img = tempfile.NamedTemporaryFile(suffix='.img',
                                         prefix='test_processMultipliers',
                                         delete=False)
@@ -123,25 +125,36 @@ class TestProcessMultipliers(unittest.TestCase):
 
         lat = np.asarray([ -23, -20, -17, -14, -11, -8, -5])
         lon = np.asarray([137, 140, 143, 146, 149, 152, 155, 158])
+
+        delta = lon[1] - lon[0]
+        lon_mid = lon + delta / 2.
+        lat_mid = lat + delta / 2.
         speed = np.zeros(([lon.shape[0], lat.shape[0]]))
-        dx = dy = 3.0
         speed.fill(42.5)
 
         # doing this just to get values in
         Vx = Vy = P = speed
 
-        result = lat, lon, speed, Vx, Vy, P
+        result = lat_mid, lon_mid, speed, Vx, Vy, P
         wg = WindfieldGenerator(None)
         wg.saveGustToFile(None, result, f_nc.name)
         # nctools.ncSaveGrid(multiplier_name, multiplier_values, lat,
         #               lon, f_nc.name)
 
+        # For the multiplier file
+        lat = np.asarray([ -17, -14, -11])
+        lon = np.asarray([140, 143, 146, 149])
+        speed = np.zeros(([lon.shape[0], lat.shape[0]]))
+        dx = 3.0
+        dy = -3.0
+        speed.fill(27.1701)
         pM.createRaster(speed, lon, lat,
-                        dx, -dy,
+                        dx, dy,
                         filename=f_img.name)
-
+        speed.fill(42.5)
         m4_max_file = f_img.name
         # pulling out a section of the processMultipliers.main
+        # load the wind data
         ncobj = Dataset(f_nc.name, 'r')
 
         lat = ncobj.variables['lat'][:]
@@ -174,9 +187,6 @@ class TestProcessMultipliers(unittest.TestCase):
 
         # The info here is correct.
         #print "img data", pM.loadRasterFile(f_img.name)
-
-        print "f_nc.name", f_nc.name
-        print "f_img.name", f_img.name
 
         assert_almost_equal(wind_data, speed)
 
