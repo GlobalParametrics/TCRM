@@ -87,7 +87,8 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     :param float dy: Pixel size in y-direction.
     :param int epsg: EPSG code of the spatial reference system
                      of the input array (default=4326, WGS84)
-    :param filename: Optional path to store the data in.
+    :param filename: Optional path
+     to store the data in.
     :type  filename: str or None
 
     """
@@ -143,7 +144,10 @@ def loadRasterFile(raster_file, fill_value=1):
     data = band.ReadAsArray()
 
     nodata = band.GetNoDataValue()
-    np.putmask(data, data == nodata, fill_value)
+
+    if nodata is not None:
+        np.putmask(data, data == nodata, fill_value)
+
     del ds
     return data
 
@@ -227,6 +231,14 @@ def reprojectDataset(src_file, match_filename, dst_filename,
 
     return
 
+@timer
+def processMult(track, result, m4_max_file, output_file,
+                multiplier_path):
+    print "we made it"
+
+    # Use this to check values
+    ncfile = track.trackfile
+    #
 
 @timer
 def main(config_file):
@@ -287,17 +299,13 @@ def main(config_file):
     uu_prj_file = pjoin(windfield_path, 'uu_prj.tif')
     vv_prj_file = pjoin(windfield_path, 'vv_prj.tif')
 
-    wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file,
-                                match_projection=32756)
+    wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file)
     bear_prj = reprojectDataset(bear_raster, m4_max_file, bear_prj_file,
-                                resampling_method=GRA_NearestNeighbour,
-                                match_projection=32756)
+                                resampling_method=GRA_NearestNeighbour)
     uu_prj = reprojectDataset(uu_raster, m4_max_file, uu_prj_file,
-                              resampling_method=GRA_NearestNeighbour,
-                              match_projection=32756)
+                              resampling_method=GRA_NearestNeighbour)
     vv_prj = reprojectDataset(vv_raster, m4_max_file, vv_prj_file,
-                              resampling_method=GRA_NearestNeighbour,
-                              match_projection=32756)
+                              resampling_method=GRA_NearestNeighbour)
 
     wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
     wind_prj = wind_prj_ds.GetRasterBand(1)

@@ -177,7 +177,7 @@ class TestProcessMultipliers(unittest.TestCase):
         m4_max_data = m4_max.GetRasterBand(1).ReadAsArray()
 
         pM.reprojectDataset(wind_raster, m4_max_file,
-                            wind_prj_file ) #,
+                            wind_prj_file) #,
                             # match_projection=32756)
 
         wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
