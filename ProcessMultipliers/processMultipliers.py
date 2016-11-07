@@ -232,13 +232,174 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     return
 
 @timer
-def processMult(track, result, m4_max_file, output_file,
-                multiplier_path):
-    print "we made it"
+def processMult(result, m4_max_file, windfield_path,
+                multiplier_path, track=None):
 
     # Use this to check values
-    ncfile = track.trackfile
-    #
+    if track is not None:
+        ncfile = track.trackfile
+
+    gust, bearing, Vx, Vy, P, lon, lat = result
+
+    wspd = gust
+    uu = Vx
+    vv = Vy
+
+    print "gust", gust
+    print "uu",uu
+    print "vv", vv
+    print "lon", lon
+    print "lat", lat
+
+    delta = lon[1] - lon[0]
+
+    print "!!!!!!!!!!!!!!!!!!!  I'm in  !!!!!!!!!!!"
+
+
+    # Reproject the wind speed and bearing data:
+    wind_raster_file = pjoin(windfield_path, 'region_wind.tif')
+    wind_raster = createRaster(wspd, lon, lat, delta, -delta,
+                               filename=wind_raster_file)
+    bear_raster = createRaster(bearing, lon, lat, delta, -delta)
+    uu_raster = createRaster(uu, lon, lat, delta, -delta)
+    vv_raster = createRaster(vv, lon, lat, delta, -delta)
+
+    log.info("Reprojecting regional wind data")
+    wind_prj_file = pjoin(windfield_path, 'gust_prj.tif')
+    bear_prj_file = pjoin(windfield_path, 'bear_prj.tif')
+    uu_prj_file = pjoin(windfield_path, 'uu_prj.tif')
+    vv_prj_file = pjoin(windfield_path, 'vv_prj.tif')
+
+    wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file)
+    bear_prj = reprojectDataset(bear_raster, m4_max_file, bear_prj_file,
+                                resampling_method=GRA_NearestNeighbour)
+    uu_prj = reprojectDataset(uu_raster, m4_max_file, uu_prj_file,
+                              resampling_method=GRA_NearestNeighbour)
+    vv_prj = reprojectDataset(vv_raster, m4_max_file, vv_prj_file,
+                              resampling_method=GRA_NearestNeighbour)
+
+    wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
+    wind_prj = wind_prj_ds.GetRasterBand(1)
+    bear_prj_ds = gdal.Open(bear_prj_file, GA_ReadOnly)
+    bear_prj = bear_prj_ds.GetRasterBand(1)
+    uu_prj_ds = gdal.Open(uu_prj_file, GA_ReadOnly)
+    uu_prj = uu_prj_ds.GetRasterBand(1)
+    vv_prj_ds = gdal.Open(vv_prj_file, GA_ReadOnly)
+    vv_prj = vv_prj_ds.GetRasterBand(1)
+    wind_proj = wind_prj_ds.GetProjection()
+    wind_geot = wind_prj_ds.GetGeoTransform()
+
+    wind_data = wind_prj.ReadAsArray()
+    bear_data = bear_prj.ReadAsArray()
+    uu_data = uu_prj.ReadAsArray()
+    vv_data = vv_prj.ReadAsArray()
+    bearing = calculateBearing(uu_data, vv_data)
+
+    # The local wind speed array:
+    local = np.zeros(wind_data.shape, dtype='float32')
+
+    indices = {
+        0: {'dir': 'n', 'min': 0., 'max': 22.5},
+        1: {'dir': 'ne', 'min': 22.5, 'max': 67.5},
+        2: {'dir': 'e', 'min': 67.5, 'max': 112.5},
+        3: {'dir': 'se', 'min': 112.5, 'max': 157.5},
+        4: {'dir': 's', 'min': 157.5, 'max': 202.5},
+        5: {'dir': 'sw', 'min': 202.5, 'max': 247.5},
+        6: {'dir': 'w', 'min': 247.5, 'max': 292.5},
+        7: {'dir': 'nw', 'min': 292.5, 'max': 337.5},
+        8: {'dir': 'n', 'min': 337.5, 'max': 360.}
+    }
+    log.info("Processing all directions")
+    for i in indices.keys():
+        dn = indices[i]['dir']
+        log.info("Processing {0}".format(dn))
+        m4_file = pjoin(multiplier_path, 'm4_{0}.img'.format(dn.lower()))
+        m4 = loadRasterFile(m4_file)
+        idx = np.where((bear_data >= indices[i]['min']) &
+                       (bear_data < indices[i]['max']))
+
+        local[idx] = wind_data[idx] * m4[idx]
+
+    rows, cols = local.shape
+    output_file = pjoin(windfield_path, 'local_wind.tif')
+    log.info("Creating output file: {0}".format(output_file))
+    # Save the local wind field to a raster file with the SRS of the
+    # multipliers
+    drv = gdal.GetDriverByName("GTiff")
+    dst_ds = drv.Create(output_file, cols, rows, 1,
+                        GDT_Float32, ['BIGTIFF=YES'])
+    dst_ds.SetGeoTransform(wind_geot)
+    dst_ds.SetProjection(wind_proj)
+    dst_band = dst_ds.GetRasterBand(1)
+    dst_band.WriteArray(local)
+
+    # dst_band.FlushCache()
+
+    del dst_ds
+    log.info("Completed")
+
+
+@timer
+def modified_main(config_file):
+    """
+    Main function to combine the multipliers with the regional wind
+    speed data.
+
+    :param str configFile: Path to configuration file.
+
+    """
+    config = ConfigParser()
+    config.read(config_file)
+    input_path = config.get('Input', 'Path')
+    try:
+        gust_file = config.get('Input', 'Gust_file')
+    except:
+        gust_file = 'gust.interp.nc'
+    windfield_path = pjoin(input_path, 'windfield')
+    ncfile = pjoin(windfield_path, gust_file)
+    multiplier_path = config.get('Input', 'Multipliers')
+
+    # Load the wind data:
+    log.info("Loading regional wind data from {0}".format(ncfile))
+    ncobj = Dataset(ncfile, 'r')
+
+    lat = ncobj.variables['lat'][:]
+    lon = ncobj.variables['lon'][:]
+
+    delta = lon[1] - lon[0]
+    lon = lon - delta / 2.
+    lat = lat - delta / 2.
+
+    # Wind speed:
+    wspd = ncobj.variables['vmax'][:]
+
+    # Components:
+    uu = ncobj.variables['ua'][:]
+    vv = ncobj.variables['va'][:]
+
+    bearing = calculateBearing(uu, vv)
+
+    gust = wspd
+    Vx = uu
+    Vy = vv
+    P = None
+
+    #  WARNING, THESE COULD BE WRONG!!!
+    # Plus it doesn't do anything,
+    # except hightlight these var's are going in..
+    lon = lon
+    lat = lat
+    # Need to be checked !!!
+
+    output_file = pjoin(windfield_path, 'local_wind.tif')
+    result =  gust, bearing, Vx, Vy, P, lon, lat
+    # Load a multiplier file to determine the projection:
+    m4_max_file = pjoin(multiplier_path, 'm4_max.img')
+    log.info("Using M4 data from {0}".format(m4_max_file))
+
+    processMult(result, m4_max_file, windfield_path,
+                multiplier_path)
+
 
 @timer
 def main(config_file):
@@ -416,7 +577,7 @@ def startup():
         main(configFile)
     else:
         try:
-            main(configFile)
+            modified_main(configFile)
         except Exception:  # pylint: disable=W0703
             # Catch any exceptions that occur and log them (nicely):
             tblines = traceback.format_exc().splitlines()

@@ -354,7 +354,7 @@ class WindfieldGenerator(object):
                  profileType='powell', windFieldType='kepert',
                  beta=1.5, beta1=1.5, beta2=1.4,
                  thetaMax=70.0, gridLimit=None, domain='bounded',
-                 multipliers=None):
+                 multipliers=None, windfieldPath=None):
 
         self.config = config
         self.margin = margin
@@ -368,6 +368,7 @@ class WindfieldGenerator(object):
         self.gridLimit = gridLimit
         self.domain = domain
         self.multipliers = multipliers
+        self.windfieldPath = windfieldPath
 
     def setGridLimit(self, track):
         """
@@ -481,7 +482,9 @@ class WindfieldGenerator(object):
         else:
             results = itertools.imap(self.calculateExtremesFromTrack,
                                      trackiter)
-
+        # Since results is a generator,
+        # making a copy so it can be iterated over twice.
+        results, results_mult = itertools.tee(results)
         for track, result in results:
             log.debug("Saving data for track {0:03d}-{1:05d}"\
                       .format(*track.trackId))
@@ -498,7 +501,7 @@ class WindfieldGenerator(object):
                                 dumpfile)
 
         if self.multipliers is not None:
-            self.calcLocalWindfield(results)
+            self.calcLocalWindfield(results_mult)
 
             #self.plotGustToFile((lat, lon, gust, Vx, Vy, P), plotfile)
 
@@ -695,11 +698,13 @@ class WindfieldGenerator(object):
         log.info("Using M4 data from {0}".format(m4_max_file))
 
         for track, result in results:
+            print "************* init 701"
             log.debug("Doing Multiplier for track {0:03d}-{1:05d}"\
                       .format(*track.trackId))
-            gust, bearing, Vx, Vy, P, lon, lat = result
-            pM.processMult(track, result, m4_max_file, output_file,
-                            self.multiplier)
+            # gust, bearing, Vx, Vy, P, lon, lat = result = N
+            # windfield_path = None
+            pM.processMult(result, m4_max_file, self.windfieldPath,
+                            self.multipliers, track)
 
 
 def loadTracksFromFiles(trackfiles):
@@ -852,7 +857,8 @@ def run(configFile, callback=None):
                              thetaMax=thetaMax,
                              gridLimit=gridLimit,
                              domain=domain,
-                             multipliers=multipliers)
+                             multipliers=multipliers,
+                             windfieldPath=windfieldPath)
 
     msg = 'Dumping gusts to %s' % windfieldPath
     log.info(msg)
