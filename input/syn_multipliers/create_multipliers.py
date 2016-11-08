@@ -1,5 +1,5 @@
 
-# from wm_nctools import save_multiplier
+from wm_nctools import save_multiplier
 import numpy as np
 
 
@@ -41,6 +41,10 @@ def course_yasi_img():
                                  filename=img_name)
 
 def course_yasi_nc():
+    """
+    This was the wrong file format.
+    :return:
+    """
     multiplier_name = 'Ms' # what the?
     lat = np.asarray([ -23, -20, -17, -14, -11, -8, -5])
     lon = np.asarray([137, 140, 143, 146, 149, 152, 155, 158])
