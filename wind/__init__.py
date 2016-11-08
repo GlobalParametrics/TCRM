@@ -703,6 +703,13 @@ class WindfieldGenerator(object):
                       .format(*track.trackId))
             # gust, bearing, Vx, Vy, P, lon, lat = result = N
             # windfield_path = None
+            gust, bearing, Vx, Vy, P, lon, lat = result
+            # Convert the .nc lat/lon to raster lat/lon
+            delta = lon[1] - lon[0]
+            lon = lon - delta / 2.
+            lat = lat - delta / 2.
+            result = gust, bearing, Vx, Vy, P, lon, lat
+
             pM.processMult(result, m4_max_file, self.windfieldPath,
                             self.multipliers, track)
 
