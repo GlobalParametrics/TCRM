@@ -42,6 +42,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
+np.random.seed(123456789)
 """
 
 TRACKFILE_COLS = ('Indicator', 'CycloneNumber', 'Year', 'Month',
