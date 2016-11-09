@@ -708,10 +708,9 @@ class WindfieldGenerator(object):
             delta = lon[1] - lon[0]
             lon = lon - delta / 2.
             lat = lat - delta / 2.
-            result = gust, bearing, Vx, Vy, P, lon, lat
 
-            pM.processMult(result, m4_max_file, self.windfieldPath,
-                            self.multipliers, track)
+            pM.processMult(gust, Vx, Vy, lon, lat, m4_max_file,
+                           self.windfieldPath, self.multipliers, track)
 
 
 def loadTracksFromFiles(trackfiles):

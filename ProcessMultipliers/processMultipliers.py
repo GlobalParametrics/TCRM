@@ -49,6 +49,17 @@ from functools import reduce
 
 gdal.UseExceptions()
 
+syn_indices = {
+    0: {'dir': 'n', 'min': 0., 'max': 22.5, 'fill': 0},
+    1: {'dir': 'ne', 'min': 22.5, 'max': 67.5, 'fill': 1},
+    2: {'dir': 'e', 'min': 67.5, 'max': 112.5, 'fill': 2},
+    3: {'dir': 'se', 'min': 112.5, 'max': 157.5, 'fill': 3},
+    4: {'dir': 's', 'min': 157.5, 'max': 202.5, 'fill': 4},
+    5: {'dir': 'sw', 'min': 202.5, 'max': 247.5, 'fill': 5},
+    6: {'dir': 'w', 'min': 247.5, 'max': 292.5, 'fill': 6},
+    7: {'dir': 'nw', 'min': 292.5, 'max': 337.5, 'fill': 7},
+    8: {'dir': 'n', 'min': 337.5, 'max': 360., 'fill': 0},
+    9: {'dir': 'max'}}
 
 def timer(f):
     """
@@ -69,6 +80,25 @@ def timer(f):
 
     return wrap
 
+def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, indices=syn_indices):
+    """
+
+    :param x_tl:  top left x
+    :param y_tl: top left y
+    :return:
+    """
+    tl_y = np.asarray([tl_y]) # top left y
+    tl_x = np.asarray([tl_x]) # top left x
+
+    multiplier_values = np.zeros((2, 3))
+
+    for index in indices:
+        multiplier_values.fill(index)
+        img_name = 'm4_' + indices[index]['dir'] + '.img'
+        file_path = pjoin(dir_path, img_name)
+        createRaster(multiplier_values, tl_x, tl_y,
+                                 delta, -delta,
+                                 filename=file_path)
 
 def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     """
@@ -234,18 +264,28 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     return
 
 @timer
-def processMult(result, m4_max_file, windfield_path,
-                multiplier_path, track=None):
+def processMult(wspd, uu, vv, lon, lat, m4_max_file, windfield_path,
+                multiplier_path):
+    """
 
-    # Use this to check values
-    if track is not None:
-        ncfile = track.trackfile
-
+    :param wspd: The gust speed
+    :param uu: x component of the wind speed
+    :param vv: y component of the wind speed
+    :param lon: list of raster longitude values
+    :param lat:  list of raster latitude values
+    :param m4_max_file: Multiplier file used for reprojection.
+    :param windfield_path: The output directory
+    :param multiplier_path: The multiplier files directory
+    :param track:
+    :return:
+    """
+    """
     gust, _, Vx, Vy, P, lon, lat = result
 
     wspd = gust
     uu = Vx
     vv = Vy
+    """
 
     # This gives different bearing values
     # thank the bearings in the result tuple
@@ -388,13 +428,11 @@ def modified_main(config_file):
     lat = lat
     # Need to be checked !!!
 
-    output_file = pjoin(windfield_path, 'local_wind.tif')
-    result =  gust, bearing, Vx, Vy, P, lon, lat
     # Load a multiplier file to determine the projection:
     m4_max_file = pjoin(multiplier_path, 'm4_max.img')
     log.info("Using M4 data from {0}".format(m4_max_file))
 
-    processMult(result, m4_max_file, windfield_path,
+    processMult(gust, Vx, Vy, lon, lat, m4_max_file, windfield_path,
                 multiplier_path)
 
 

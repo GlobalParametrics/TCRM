@@ -6,9 +6,10 @@ Unit test suite for processMultipliers.py
 
 import sys
 import os
-from os.path import join as pjoin, exists
+from os.path import join as pjoin, exists, dirname
 import unittest
 import tempfile
+import shutil
 
 from numpy.testing import assert_almost_equal
 import numpy as np
@@ -208,6 +209,22 @@ class TestProcessMultipliers(unittest.TestCase):
         actual = np.asarray([[0., 45., 90., 135.],
                          [180., 225., 270., 315.]])
         assert_almost_equal(actual, bearing)
+
+
+    def test_generate_syn_mult_img(self):
+        dir_path = tempfile.mkdtemp(prefix='test_processMultipliers')
+        pM.generate_syn_mult_img(136, -20, 2, dir_path)
+
+        shutil.rmtree(dir_path)
+
+    def test_processMult(self):
+        uu = np.asarray([[0., -1., -1., -1.],
+                         [0., 1., 1., 1.]])
+        vv = np.asarray([[-1., -1., 0, 1.],
+                         [1., 1., 0, -1.]])
+        gust = np.asarray([[1., -1., 10, -10.],
+                         [100., -100., 1000, -1000.]])
+
 
 if __name__ == "__main__":
     unittest.main()
