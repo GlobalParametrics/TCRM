@@ -199,6 +199,15 @@ class TestProcessMultipliers(unittest.TestCase):
             os.remove(f_nc.name)
             os.remove(f_img.name)
 
+    def test_reprojectDataset_same_nc_img(self):
+        uu = np.asarray([[0., 1., 1., 1.],
+                         [0., -1., -1., -1.]])
+        vv = np.asarray([[1., 1., 0, -1.],
+                         [-1., -1., 0, 1.]])
+        bearing = pM.calculateBearing(uu, vv)
+        actual = np.asarray([[0., 45., 90., 135.],
+                         [180., 225., 270., 315.]])
+        self.assertEqual(actual, bearing)
 
 if __name__ == "__main__":
     unittest.main()

@@ -245,22 +245,11 @@ def processMult(result, m4_max_file, windfield_path,
     uu = Vx
     vv = Vy
 
+    # This gives different bearing values
+    # thank the bearings in the result tuple
     bearing = calculateBearing(uu, vv)
 
-    print "gust", gust
-    print "uu",uu
-    print "vv", vv
-    print "lon", lon
-    print "lat", lat
-    print "bearing", bearing
-
-    print "m4_max_file", m4_max_file
-    print "windfield_path", windfield_path
-    print "multiplier_path", multiplier_path
-
     delta = lon[1] - lon[0]
-
-    print "!!!!!!!!!!!!!!!!!!!  I'm in  !!!!!!!!!!!"
 
 
     # Reproject the wind speed and bearing data:
@@ -302,8 +291,6 @@ def processMult(result, m4_max_file, windfield_path,
     vv_data = vv_prj.ReadAsArray()
     bearing = calculateBearing(uu_data, vv_data)
 
-    print "wind_data", wind_data
-    print "bear_data", bear_data
     # The local wind speed array:
     local = np.zeros(wind_data.shape, dtype='float32')
 
@@ -324,14 +311,10 @@ def processMult(result, m4_max_file, windfield_path,
         log.info("Processing {0}".format(dn))
         m4_file = pjoin(multiplier_path, 'm4_{0}.img'.format(dn.lower()))
         m4 = loadRasterFile(m4_file)
-        print "*****************"
-        print 'i', i
-        print 'm4', m4
         idx = np.where((bear_data >= indices[i]['min']) &
                        (bear_data < indices[i]['max']))
 
         local[idx] = wind_data[idx] * m4[idx]
-    print "local", local
     rows, cols = local.shape
     output_file = pjoin(windfield_path, 'local_wind.tif')
     log.info("Creating output file: {0}".format(output_file))
