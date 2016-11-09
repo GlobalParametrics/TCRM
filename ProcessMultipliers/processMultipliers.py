@@ -160,8 +160,10 @@ def calculateBearing(uu, vv):
     :param uu: :class:`numpy.ndarray` of eastward values
     :param vv: :class:`numpy.ndarray` of northward values.
 
-    :returns: Direction of the vector, zero northwards, positive
-              clockwise, in degrees.
+    :returns: Direction the wind is coming from, zero northwards, positive
+              clockwise, in degrees.  This is the direction the wind is
+              blowing from.  So if thw wind is speeding north, the
+              bearing is 180 deg.
     :rtype: :class:`numpy.ndarray`
 
     """
