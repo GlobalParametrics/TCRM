@@ -207,7 +207,7 @@ class TestProcessMultipliers(unittest.TestCase):
         bearing = pM.calculateBearing(uu, vv)
         actual = np.asarray([[0., 45., 90., 135.],
                          [180., 225., 270., 315.]])
-        self.assertEqual(actual, bearing)
+        assert_almost_equal(actual, bearing)
 
 if __name__ == "__main__":
     unittest.main()
