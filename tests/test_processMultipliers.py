@@ -212,19 +212,37 @@ class TestProcessMultipliers(unittest.TestCase):
 
 
     def test_generate_syn_mult_img(self):
-        dir_path = tempfile.mkdtemp(prefix='test_processMultipliers')
+        dir_path = tempfile.mkdtemp(prefix='test_generate_syn_mult_img')
         pM.generate_syn_mult_img(136, -20, 2, dir_path)
 
         shutil.rmtree(dir_path)
 
     def test_processMult(self):
+        dir_path = tempfile.mkdtemp(prefix='test_processMult')
+        pM.generate_syn_mult_img(136, -24, 2, dir_path)
+
         uu = np.asarray([[0., -1., -1., -1.],
                          [0., 1., 1., 1.]])
         vv = np.asarray([[-1., -1., 0, 1.],
                          [1., 1., 0, -1.]])
         gust = np.asarray([[1., -1., 10, -10.],
                          [100., -100., 1000, -1000.]])
+        lon = np.asarray([136, 138, 140, 142])
+        lat = np.array([-24, -22])
+        windfield_path = dir_path # write the output to the multiplier dir
+        multiplier_path = dir_path
 
+        output_file = pM.processMult(gust, uu, vv, lon, lat, windfield_path,
+                       multiplier_path)
+
+        data = pM.loadRasterFile(output_file)
+        actual = np.asarray([[0., -1., 20, -20.],
+                         [200., -200., 2000, -2000.]])
+        assert_almost_equal(data, actual)
+
+
+
+        shutil.rmtree(dir_path)
 
 if __name__ == "__main__":
     unittest.main()

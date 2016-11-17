@@ -182,6 +182,33 @@ def loadRasterFile(raster_file, fill_value=1):
     return data
 
 
+def loadRasterFileBandLonLat(raster_file, fill_value=1):
+    """
+    Load a raster file and return the data as a :class:`numpy.ndarray`.
+    No prorjection information is returned, just the actual data as an
+    array.
+
+    :param str raster_file: Path to the raster file to load.
+    :param fill_value: Value to replace `nodata` values with (default=1).
+    :returns: 2-d array of the data values.
+    :rtype: :class:`numpy.ndarray`
+
+    """
+
+    log.debug("Loading raster data from {0} into array".format(raster_file))
+    ds = gdal.Open(raster_file, GA_ReadOnly)
+    band = ds.GetRasterBand(1)
+    data = band.ReadAsArray()
+
+    nodata = band.GetNoDataValue()
+
+    if nodata is not None:
+        np.putmask(data, data == nodata, fill_value)
+
+    del ds
+    return data
+
+
 def calculateBearing(uu, vv):
     """
     Calculate the wind direction from the u (eastward) and v
@@ -264,8 +291,8 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     return
 
 @timer
-def processMult(wspd, uu, vv, lon, lat, m4_max_file, windfield_path,
-                multiplier_path):
+def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
+                m4_max_file='m4_max.img'):
     """
 
     :param wspd: The gust speed
@@ -276,7 +303,6 @@ def processMult(wspd, uu, vv, lon, lat, m4_max_file, windfield_path,
     :param m4_max_file: Multiplier file used for reprojection.
     :param windfield_path: The output directory
     :param multiplier_path: The multiplier files directory
-    :param track:
     :return:
     """
     """
@@ -307,6 +333,8 @@ def processMult(wspd, uu, vv, lon, lat, m4_max_file, windfield_path,
     bear_prj_file = pjoin(windfield_path, 'bear_prj.tif')
     uu_prj_file = pjoin(windfield_path, 'uu_prj.tif')
     vv_prj_file = pjoin(windfield_path, 'vv_prj.tif')
+
+    m4_max_file = pjoin(multiplier_path, m4_max_file)
 
     wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file)
     bear_prj = reprojectDataset(bear_raster, m4_max_file, bear_prj_file,
@@ -375,6 +403,8 @@ def processMult(wspd, uu, vv, lon, lat, m4_max_file, windfield_path,
     del dst_ds
     log.info("Completed")
 
+    return output_file
+
 
 @timer
 def modified_main(config_file):
@@ -429,11 +459,11 @@ def modified_main(config_file):
     # Need to be checked !!!
 
     # Load a multiplier file to determine the projection:
-    m4_max_file = pjoin(multiplier_path, 'm4_max.img')
-    log.info("Using M4 data from {0}".format(m4_max_file))
 
-    processMult(gust, Vx, Vy, lon, lat, m4_max_file, windfield_path,
-                multiplier_path)
+    log.info("Using M4 data from {0}".format(multiplier_path))
+
+    processMult(gust, Vx, Vy, lon, lat, windfield_path, multiplier_path,
+                m4_max_file)
 
 
 @timer
