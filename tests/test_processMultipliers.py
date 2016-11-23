@@ -257,17 +257,6 @@ class TestProcessMultipliers(unittest.TestCase):
         dir_path = tempfile.mkdtemp(prefix='test_processMult')
         pM.generate_syn_mult_img(136, -20, 2, dir_path, shape=(2, 4))
 
-        print "***'m4_max.img'**"
-        output_file = pjoin(dir_path, 'm4_max.img')
-        minx, miny, maxx, maxy, data = pM.loadRasterFileBandLonLat(output_file)
-
-        print 'data', data
-        print 'minx', minx
-        print 'miny', miny
-        print 'maxx', maxx
-        print 'maxy', maxy
-        print "*****"
-
         # Top to bottom format.
         # Which is the wrong format
         uu = np.asarray([[0., -1., -1., -1.],
@@ -297,18 +286,16 @@ class TestProcessMultipliers(unittest.TestCase):
 
         minx, miny, maxx, maxy, data = pM.loadRasterFileBandLonLat(output_file)
 
-
-        print 'minx', minx
-        print 'miny', miny
-        print 'maxx', maxx
-        print 'maxy', maxy
-
         actual = np.asarray([[0., -1., 20, -30.],
                          [400., -500., 6000, -7000.]])
 
-        print 'dir_path', dir_path
+        # print 'dir_path', dir_path
 
         assert_almost_equal(data, actual)
+        self.assertEqual(minx, 136)
+        self.assertEqual(maxx, 144)
+        self.assertEqual(miny, -24)
+        self.assertEqual(maxy, -20)
 
         shutil.rmtree(dir_path)
 

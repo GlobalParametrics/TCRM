@@ -97,7 +97,6 @@ def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, shape,
     multiplier_values = np.zeros(shape)
 
     for key, value in indices.iteritems():
-        print 'value', value
         if every_fill is None:
             fill = value['fill']
         else:
@@ -313,6 +312,9 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
                 m4_max_file='m4_max.img'):
     """
 
+    The lat and lon values are the top left corners of the cells
+    The speed arrays are in bottom to top format
+    
     :param wspd: The gust speed
     :param uu: x component of the wind speed
     :param vv: y component of the wind speed
