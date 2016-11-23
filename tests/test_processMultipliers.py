@@ -71,6 +71,41 @@ class TestProcessMultipliers(unittest.TestCase):
         self.assertEqual(type(result), gdal.Dataset)
         assert exists(file_is)
 
+    def test_createRaster3(self):
+        """Test can create img files"""
+        file_is = 'test.img'
+
+        f_img = tempfile.NamedTemporaryFile(suffix='.img',
+                                        prefix='test_proMult',
+                                        delete=False)
+        f_img.close()
+
+        gust = np.asarray([[1., -1., 10, -10.],
+                         [100., -100., 1000, -1000.]])
+        lon = np.asarray([136, 138, 140, 142]) # 136 is used
+        lat = np.array([-24, -22]) # -22 is used
+
+        result = pM.createRaster(gust, lon, lat,
+                                 2, -2,
+                                 filename=f_img.name)
+        minx, miny, maxx, maxy, data = pM.loadRasterFileBandLonLat(f_img.name)
+
+
+        print '@@ data', data
+        print 'minx', minx
+        print 'miny', miny
+        print 'maxx', maxx
+        print 'maxy', maxy
+
+        self.assertEqual(minx, 136)
+        self.assertEqual(maxx, 144)
+        self.assertEqual(miny, -24)
+        self.assertEqual(maxy, -20)
+        assert_almost_equal(gust, data)
+
+        os.remove(f_img.name)
+
+
     def test_loadRasterFile(self):
         """Test loadRasterFile correctly loads data"""
 
@@ -213,20 +248,33 @@ class TestProcessMultipliers(unittest.TestCase):
 
     def test_generate_syn_mult_img(self):
         dir_path = tempfile.mkdtemp(prefix='test_generate_syn_mult_img')
-        pM.generate_syn_mult_img(136, -20, 2, dir_path)
+        pM.generate_syn_mult_img(136, -20, 2, dir_path, shape=(2, 4))
 
         shutil.rmtree(dir_path)
 
     def test_processMult(self):
         dir_path = tempfile.mkdtemp(prefix='test_processMult')
-        pM.generate_syn_mult_img(136, -24, 2, dir_path)
+        pM.generate_syn_mult_img(136, -20, 2, dir_path, shape=(2, 4))
 
+        print "***'m4_max.img'**"
+        output_file = pjoin(dir_path, 'm4_max.img')
+        minx, miny, maxx, maxy, data = pM.loadRasterFileBandLonLat(output_file)
+
+        print 'data', data
+        print 'minx', minx
+        print 'miny', miny
+        print 'maxx', maxx
+        print 'maxy', maxy
+        print "*****"
         uu = np.asarray([[0., -1., -1., -1.],
                          [0., 1., 1., 1.]])
         vv = np.asarray([[-1., -1., 0, 1.],
                          [1., 1., 0, -1.]])
         gust = np.asarray([[1., -1., 10, -10.],
                          [100., -100., 1000, -1000.]])
+
+        # Note, this is adding
+        # An extra longitude 'cell'
         lon = np.asarray([136, 138, 140, 142])
         lat = np.array([-24, -22])
         windfield_path = dir_path # write the output to the multiplier dir
@@ -235,14 +283,26 @@ class TestProcessMultipliers(unittest.TestCase):
         output_file = pM.processMult(gust, uu, vv, lon, lat, windfield_path,
                        multiplier_path)
 
-        data = pM.loadRasterFile(output_file)
-        actual = np.asarray([[0., -1., 20, -20.],
-                         [200., -200., 2000, -2000.]])
+        minx, miny, maxx, maxy, data = pM.loadRasterFileBandLonLat(output_file)
+
+
+        print 'minx', minx
+        print 'miny', miny
+        print 'maxx', maxx
+        print 'maxy', maxy
+
+        actual = np.asarray([[0., -1., 20, -30.],
+                         [400., -500., 6000, -7000.]])
+
+        print 'dir_path', dir_path
+
         assert_almost_equal(data, actual)
-
-
 
         shutil.rmtree(dir_path)
 
 if __name__ == "__main__":
-    unittest.main()
+    Suite = unittest.makeSuite(TestProcessMultipliers, 'test_processMultls'
+                                                       '')
+    Suite = unittest.makeSuite(TestProcessMultipliers, 'test')
+    Runner = unittest.TextTestRunner()
+    Runner.run(Suite)

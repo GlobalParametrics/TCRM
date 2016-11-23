@@ -80,21 +80,27 @@ def timer(f):
 
     return wrap
 
-def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, indices=syn_indices):
+def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, shape,
+                          indices=syn_indices,
+                          fill=None):
     """
 
     :param x_tl:  top left x
     :param y_tl: top left y
+    :param shape: The array shape
     :return:
+
     """
     tl_y = np.asarray([tl_y]) # top left y
     tl_x = np.asarray([tl_x]) # top left x
 
-    multiplier_values = np.zeros((2, 3))
+    multiplier_values = np.zeros(shape)
 
-    for index in indices:
-        multiplier_values.fill(index)
-        img_name = 'm4_' + indices[index]['dir'] + '.img'
+    for key, value in indices.iteritems():
+        if fill is None:
+            fill = value['fill']
+        multiplier_values.fill(fill)
+        img_name = 'm4_' + value['dir'] + '.img'
         file_path = pjoin(dir_path, img_name)
         createRaster(multiplier_values, tl_x, tl_y,
                                  delta, -delta,
@@ -202,11 +208,20 @@ def loadRasterFileBandLonLat(raster_file, fill_value=1):
 
     nodata = band.GetNoDataValue()
 
+    width = ds.RasterXSize
+    height = ds.RasterYSize
+    gt = ds.GetGeoTransform()
+    minx = gt[0]
+    miny = gt[3] + width*gt[4] + height*gt[5]
+    maxx = gt[0] + width*gt[1] + height*gt[2]
+    maxy = gt[3]
+
+
     if nodata is not None:
         np.putmask(data, data == nodata, fill_value)
 
     del ds
-    return data
+    return minx, miny, maxx, maxy, data
 
 
 def calculateBearing(uu, vv):
@@ -219,7 +234,7 @@ def calculateBearing(uu, vv):
 
     :returns: Direction the wind is coming from, zero northwards, positive
               clockwise, in degrees.  This is the direction the wind is
-              blowing from.  So if thw wind is speeding north, the
+              blwing from.  So if thw wind is speeding north, the
               bearing is 180 deg.
     :rtype: :class:`numpy.ndarray`
 
@@ -312,6 +327,9 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     uu = Vx
     vv = Vy
     """
+    print "lat passed to process M", lat
+    print "lon passed to process M", lon
+    print 'wspd', wspd
 
     # This gives different bearing values
     # thank the bearings in the result tuple
@@ -335,7 +353,7 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     vv_prj_file = pjoin(windfield_path, 'vv_prj.tif')
 
     m4_max_file = pjoin(multiplier_path, m4_max_file)
-
+    print "wind_raster", wind_raster.GetRasterBand(1).ReadAsArray()
     wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file)
     bear_prj = reprojectDataset(bear_raster, m4_max_file, bear_prj_file,
                                 resampling_method=GRA_NearestNeighbour)
@@ -375,6 +393,7 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
         7: {'dir': 'nw', 'min': 292.5, 'max': 337.5},
         8: {'dir': 'n', 'min': 337.5, 'max': 360.}
     }
+    print "wind_data", wind_data
     log.info("Processing all directions")
     for i in indices.keys():
         dn = indices[i]['dir']
@@ -462,8 +481,7 @@ def modified_main(config_file):
 
     log.info("Using M4 data from {0}".format(multiplier_path))
 
-    processMult(gust, Vx, Vy, lon, lat, windfield_path, multiplier_path,
-                m4_max_file)
+    processMult(gust, Vx, Vy, lon, lat, windfield_path, multiplier_path)
 
 
 @timer

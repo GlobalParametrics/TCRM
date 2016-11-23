@@ -694,8 +694,8 @@ class WindfieldGenerator(object):
 
 
         # Load a multiplier file to determine the projection:
-        m4_max_file = pjoin(self.multipliers, 'm4_max.img')
-        log.info("Using M4 data from {0}".format(m4_max_file))
+         # m4_max_file = pjoin(self.multipliers, 'm4_max.img')
+        log.info("Using M4 data from {0}".format(self.multipliers))
 
         for track, result in results:
             print "************* init 701"
@@ -710,7 +710,7 @@ class WindfieldGenerator(object):
             lat = lat - delta / 2.
 
             pM.processMult(gust, Vx, Vy, lon, lat,self.windfieldPath,
-                           self.multipliers, m4_max_file)
+                           self.multipliers)
 
 
 def loadTracksFromFiles(trackfiles):
