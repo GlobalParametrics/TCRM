@@ -250,9 +250,10 @@ class TestProcessMultipliers(unittest.TestCase):
         dir_path = tempfile.mkdtemp(prefix='test_generate_syn_mult_img')
         pM.generate_syn_mult_img(136, -20, 2, dir_path, shape=(2, 4))
 
+
         shutil.rmtree(dir_path)
 
-    def test_processMult(self):
+    def test_processMult_A(self):
         dir_path = tempfile.mkdtemp(prefix='test_processMult')
         pM.generate_syn_mult_img(136, -20, 2, dir_path, shape=(2, 4))
 
@@ -266,6 +267,9 @@ class TestProcessMultipliers(unittest.TestCase):
         print 'maxx', maxx
         print 'maxy', maxy
         print "*****"
+
+        # Top to bottom format.
+        # Which is the wrong format
         uu = np.asarray([[0., -1., -1., -1.],
                          [0., 1., 1., 1.]])
         vv = np.asarray([[-1., -1., 0, 1.],
@@ -273,10 +277,18 @@ class TestProcessMultipliers(unittest.TestCase):
         gust = np.asarray([[1., -1., 10, -10.],
                          [100., -100., 1000, -1000.]])
 
-        # Note, this is adding
-        # An extra longitude 'cell'
+        # Bottom to top
+        # This is the format required by the interface
+        uu = np.asarray([[0., 1., 1., 1.],
+                         [0., -1., -1., -1.]])
+        vv = np.asarray([[1., 1., 0, -1.],
+                         [-1., -1., 0, 1.]])
+        gust = np.asarray([[100., -100., 1000, -1000.],
+                         [1., -1., 10, -10.]])
+
+
         lon = np.asarray([136, 138, 140, 142])
-        lat = np.array([-24, -22])
+        lat = np.array([-22, -20])
         windfield_path = dir_path # write the output to the multiplier dir
         multiplier_path = dir_path
 
@@ -301,8 +313,7 @@ class TestProcessMultipliers(unittest.TestCase):
         shutil.rmtree(dir_path)
 
 if __name__ == "__main__":
-    Suite = unittest.makeSuite(TestProcessMultipliers, 'test_processMultls'
-                                                       '')
-    Suite = unittest.makeSuite(TestProcessMultipliers, 'test')
+    Suite = unittest.makeSuite(TestProcessMultipliers, 'test_processMu')
+    # Suite = unittest.makeSuite(TestProcessMultipliers, 'test')
     Runner = unittest.TextTestRunner()
     Runner.run(Suite)

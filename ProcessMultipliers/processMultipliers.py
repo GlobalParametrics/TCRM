@@ -59,7 +59,7 @@ syn_indices = {
     6: {'dir': 'w', 'min': 247.5, 'max': 292.5, 'fill': 6},
     7: {'dir': 'nw', 'min': 292.5, 'max': 337.5, 'fill': 7},
     8: {'dir': 'n', 'min': 337.5, 'max': 360., 'fill': 0},
-    9: {'dir': 'max'}}
+    9: {'dir': 'max', 'fill': 0}}
 
 def timer(f):
     """
@@ -82,7 +82,7 @@ def timer(f):
 
 def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, shape,
                           indices=syn_indices,
-                          fill=None):
+                          every_fill=None):
     """
 
     :param x_tl:  top left x
@@ -97,8 +97,11 @@ def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, shape,
     multiplier_values = np.zeros(shape)
 
     for key, value in indices.iteritems():
-        if fill is None:
+        print 'value', value
+        if every_fill is None:
             fill = value['fill']
+        else:
+            fill = every_fill
         multiplier_values.fill(fill)
         img_name = 'm4_' + value['dir'] + '.img'
         file_path = pjoin(dir_path, img_name)
