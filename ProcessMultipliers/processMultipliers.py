@@ -207,7 +207,6 @@ def loadRasterFileBandLonLat(raster_file, fill_value=1):
     ds = gdal.Open(raster_file, GA_ReadOnly)
     band = ds.GetRasterBand(1)
     data = band.ReadAsArray()
-
     nodata = band.GetNoDataValue()
 
     width = ds.RasterXSize
@@ -314,7 +313,7 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
 
     The lat and lon values are the top left corners of the cells
     The speed arrays are in bottom to top format
-    
+
     :param wspd: The gust speed
     :param uu: x component of the wind speed
     :param vv: y component of the wind speed
@@ -325,16 +324,6 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     :param multiplier_path: The multiplier files directory
     :return:
     """
-    """
-    gust, _, Vx, Vy, P, lon, lat = result
-
-    wspd = gust
-    uu = Vx
-    vv = Vy
-    """
-    print "lat passed to process M", lat
-    print "lon passed to process M", lon
-    print 'wspd', wspd
 
     # This gives different bearing values
     # thank the bearings in the result tuple
@@ -358,7 +347,6 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     vv_prj_file = pjoin(windfield_path, 'vv_prj.tif')
 
     m4_max_file = pjoin(multiplier_path, m4_max_file)
-    print "wind_raster", wind_raster.GetRasterBand(1).ReadAsArray()
     wind_prj = reprojectDataset(wind_raster, m4_max_file, wind_prj_file)
     bear_prj = reprojectDataset(bear_raster, m4_max_file, bear_prj_file,
                                 resampling_method=GRA_NearestNeighbour)
@@ -398,7 +386,6 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
         7: {'dir': 'nw', 'min': 292.5, 'max': 337.5},
         8: {'dir': 'n', 'min': 337.5, 'max': 360.}
     }
-    print "wind_data", wind_data
     log.info("Processing all directions")
     for i in indices.keys():
         dn = indices[i]['dir']
