@@ -166,8 +166,8 @@ def doWindfieldPlotting(configFile):
     print "cbarlabel",cbarlabel
     print "map_kwargs",map_kwargs
 
-    #saveWindfieldMap(vdata, xgrid, ygrid, title, levels,
-     #                cbarlabel, map_kwargs, plotPath)
+    saveWindfieldMap(vdata, xgrid, ygrid, title, levels,
+                     cbarlabel, map_kwargs, plotPath)
 
 @timer
 def main(configFile):
