@@ -158,13 +158,6 @@ def doWindfieldPlotting(configFile):
     title = "Maximum wind speed"
     cbarlabel = "Wind speed ({0})".format(f.variables['vmax'].units)
     levels = np.arange(30, 101., 5.)
-    print "vdata",vdata
-    print "xgrid",xgrid
-    print "ygrid",ygrid
-    print "title",title
-    print "levels",levels
-    print "cbarlabel",cbarlabel
-    print "map_kwargs",map_kwargs
 
     saveWindfieldMap(vdata, xgrid, ygrid, title, levels,
                      cbarlabel, map_kwargs, plotPath)

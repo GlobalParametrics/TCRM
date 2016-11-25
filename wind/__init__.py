@@ -698,7 +698,6 @@ class WindfieldGenerator(object):
         log.info("Using M4 data from {0}".format(self.multipliers))
 
         for track, result in results:
-            print "************* init 701"
             log.debug("Doing Multiplier for track {0:03d}-{1:05d}"\
                       .format(*track.trackId))
             # gust, bearing, Vx, Vy, P, lon, lat = result = N
