@@ -54,26 +54,30 @@ class TestWindVelocity(NumpyTestCase.NumpyTestCase):
         profile = HollandWindProfile(self.cLat, self.cLon, self.pEnv,
                                      self.pCentre, self.rMax, self.beta)
         V = profile.velocity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_wP_holland)
+        self.numpyAssertAlmostEqual(V, self.test_wP_holland,
+                                    prec=1.0000000000000001e-004)
 
     def testWilloughby(self):
         profile = WilloughbyWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax)
         V = profile.velocity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_wP_willoughby)
+        self.numpyAssertAlmostEqual(V, self.test_wP_willoughby,
+                                    prec=1.0000000000000001e-004)
 
     def testPowell(self):
         profile = PowellWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax)
         V = profile.velocity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_wP_powell)
+        self.numpyAssertAlmostEqual(V, self.test_wP_powell,
+                                    prec=1.0000000000000001e-004)
 
     def testDoubleHolland(self):
         profile = DoubleHollandWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax,
             self.beta1, self.beta2, self.rMax2)
         V = profile.velocity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_wP_doubleHolland)
+        self.numpyAssertAlmostEqual(V, self.test_wP_doubleHolland,
+                                    prec=1.0000000000000001e-004)
 
 class TestWindVorticity(NumpyTestCase.NumpyTestCase):
 
@@ -102,22 +106,22 @@ class TestWindVorticity(NumpyTestCase.NumpyTestCase):
         profile = RankineWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax)
         profile.vMax = self.vMax
-        V = profile.vorticity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_vorticity_rankine)
+        Z = profile.vorticity(self.R)
+        self.numpyAssertAlmostEqual(Z, self.test_vorticity_rankine)
 
     def testJelesnianski(self):
         profile = JelesnianskiWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax)
         profile.vMax = self.vMax
-        V = profile.vorticity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_vorticity_jelesnianski)
+        Z = profile.vorticity(self.R)
+        self.numpyAssertAlmostEqual(Z, self.test_vorticity_jelesnianski)
 
     def testHolland(self):
         profile = HollandWindProfile(self.cLat, self.cLon, self.pEnv,
                                      self.pCentre, self.rMax, self.beta)
         profile.vMax = self.vMax
-        V = profile.vorticity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_vorticity_holland)
+        Z = profile.vorticity(self.R)
+        self.numpyAssertAlmostEqual(Z, self.test_vorticity_holland)
 
     def testWilloughby(self):
         profile = WilloughbyWindProfile(
@@ -125,23 +129,23 @@ class TestWindVorticity(NumpyTestCase.NumpyTestCase):
         # Hack for testing as vMax needs to be set
         profile.vMax = self.vMax
         profile.beta = 1.0036 + 0.0173 * profile.vMax - 0.313 * np.log(self.rMax) + 0.0087 * np.abs(self.cLat)
-        V = profile.vorticity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_vorticity_willoughby)
+        Z = profile.vorticity(self.R)
+        self.numpyAssertAlmostEqual(Z, self.test_vorticity_willoughby)
 
     def testDoubleHolland(self):
         profile = DoubleHollandWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax,
             self.beta1, self.beta2, self.rMax2)
         profile.vMax = self.vMax
-        V = profile.vorticity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_vorticity_doubleHolland)
+        Z = profile.vorticity(self.R)
+        self.numpyAssertAlmostEqual(Z, self.test_vorticity_doubleHolland)
 
     def testPowell(self):
         profile = PowellWindProfile(
             self.cLat, self.cLon, self.pEnv, self.pCentre, self.rMax)
         profile.vMax = self.vMax
-        V = profile.vorticity(self.R)
-        self.numpyAssertAlmostEqual(V, self.test_vorticity_powell)
+        Z = profile.vorticity(self.R)
+        self.numpyAssertAlmostEqual(Z, self.test_vorticity_powell)
 
 
 class TestWindField(NumpyTestCase.NumpyTestCase):

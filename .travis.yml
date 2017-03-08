@@ -9,7 +9,6 @@ addons:
     packages: 
     - build-essential 
     - libgeos-c1
-    - lib-geos-dev
     - libhdf5-serial-dev
     - libatlas-base-dev
     - gfortran
@@ -44,7 +43,7 @@ install:
 # Script execution
 script: 
   - python installer/setup.py build_ext -i
-  - nosetests -w tests/ -v --with-coverage
+  - nosetests -v --with-coverage
 
 # Post
 after_success: 

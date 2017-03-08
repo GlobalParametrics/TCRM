@@ -176,9 +176,9 @@ class WindfieldAroundTrack(object):
         lon = self.track.Longitude[i]
         eP = convert(self.track.EnvPressure[i], 'hPa', 'Pa')
         cP = convert(self.track.CentralPressure[i], 'hPa', 'Pa')
-        rMax = self.track.rMax[i]
-        vFm = convert(self.track.Speed[i], 'kmh', 'mps')
-        thetaFm = bearing2theta(self.track.Bearing[i] * np.pi/180.),
+        rMax = self.track.rMax[i]*1000
+        vFm = convert(self.track.Speed[i], 'kph', 'mps')
+        thetaFm = bearing2theta(self.track.Bearing[i] * np.pi/180.)
         thetaMax = self.thetaMax
 
         #FIXME: temporary way to do this
@@ -197,7 +197,7 @@ class WindfieldAroundTrack(object):
         values = [getattr(self, p) for p in params if hasattr(self, p)]
         windfield = cls(profile, *values)
 
-        Ux, Vy = windfield.field(R, theta, vFm, thetaFm,  thetaMax)
+        Ux, Vy = windfield.field(R * 1000, theta, vFm, thetaFm,  thetaMax)
 
         return (Ux, Vy, P)
 
@@ -586,13 +586,13 @@ class WindfieldGenerator(object):
                 'values': speed,
                 'dtype': 'f',
                 'atts': {
-                    'long_name': 'Maximum 3-second gust wind speed',
+                    'long_name': 'Maximum 0.2-second gust wind speed',
                     'standard_name': 'wind_speed_of_gust',
                     'units': 'm/s',
                     'actual_range': (np.min(speed), np.max(speed)),
                     'valid_range': (0.0, 200.),
-                    'cell_methods': ('time: maximum '
-                                     'time: maximum (interval: 3 seconds)'),
+                    'cell_methods': ('time: maximum ',
+                                     'time: maximum (interval: 0.2 seconds)'),
                     'grid_mapping': 'crs'
                 }
             },
