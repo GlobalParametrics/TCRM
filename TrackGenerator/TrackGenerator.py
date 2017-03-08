@@ -719,6 +719,9 @@ class TrackGenerator(object):
                            file. Otherwise, the tracks will be saved in
                            csv format.
         """
+        """
+        #TODO: Here, `results` is a collection of `Track` objects, but the 
+        #      previous generation had `results` as an array holding the track data.
 
         results = self.generateTracks(
             nTracks, simId, initLon=initLon, initLat=initLat,
@@ -828,6 +831,7 @@ class TrackGenerator(object):
 
             fl = AsyncRun(flSaveFile, args)
             fl.start()
+        """
 
     def _singleTrack(self, cycloneNumber, initLon, initLat, initSpeed,
                      initBearing, initPressure, initEnvPressure,
