@@ -20,6 +20,10 @@ the surface wind speed, incorporating the wavenumber-1 assymetry due
 to storm forward motion, and the effects of (uniform) surface
 roughness.
 
+Wind speeds are assumed to represent a 1-minute mean wind
+speed. Conversion to other averaging periods is performed by
+application of gust factors in the calling classes.
+
 :Note: Not all models are fully implemented - some cannot be fully
        implemented, as the mathematical formulation results in
        discontinuous profiles (e.g. Rankine vortex), for which a
@@ -101,12 +105,12 @@ class HollandWindSpeed(WindSpeedModel):
 
     """
     .. |beta|   unicode:: U+003B2 .. GREEK SMALL LETTER BETA
-    
+
     Holland (1980), An Analytic Model of the Wind and Pressure Profiles
     in Hurricanes. Mon. Wea. Rev, 108, 1212-1218 Density of air is
     assumed to be 1.15 kg/m^3.  |beta| is assumed to be 1.3. Other values
     can be specified.  Gradient level wind (assumed maximum).
-    
+
     """
 
     def maximum(self):
@@ -327,7 +331,7 @@ class HollandWindProfile(WindProfileModel):
 
         :returns: Array of gradient level wind speed.
         :rtype: :class:`numpy.ndarray`
-        
+
         """
 
         d2Vm = self.secondDerivative()
@@ -357,22 +361,37 @@ class HollandWindProfile(WindProfileModel):
 
         :returns: Array of gradient level (relative) vorticity.
         :rtype: :class:`numpy.ndarray`
-        
+
         """
-         
+ 
         beta = self.beta
         delta = (self.rMax / R) ** beta
         edelta = np.exp(-delta)
 
-        Z = ((np.sqrt((self.dP * beta / self.rho) *
-             delta * edelta + (R * self.f / 2.) ** 2)) / R -
-             np.abs(self.f) + edelta *
-             (2 * (beta ** 2) * self.dP * (delta - 1) * delta +
-              self.rho * edelta * (self.f * R) ** 2) /
-             (2 * self.rho * R *
-              np.sqrt(4 * (beta * self.dP / self.rho) * delta * edelta
-                      + (self.f * R) ** 2)))
+        #Z = ((np.sqrt((self.dP * beta / self.rho) *
+        #     delta * edelta + (R * self.f / 2.) ** 2)) / R -
+        #     np.abs(self.f) + edelta *
+        #     (2 * (beta ** 2) * self.dP * (delta - 1) * delta +
+        #      self.rho * edelta * (self.f * R) ** 2) /
+        #     (2 * self.rho * R *
+        #      np.sqrt(4 * (beta * self.dP / self.rho) * delta * edelta
+        #              + (self.f * R) ** 2)))
 
+
+        n1 = np.sqrt((beta * self.dP / self.rho ) * delta * edelta -
+                     (R * np.abs(self.f) / 2. ) ** 2)
+        n2 = (((beta ** 2) * self.dP / (self.rho * R)) * (delta ** 2) * edelta -
+              ((beta ** 2) * self.dP / (self.rho * R)) * delta * edelta +
+               (np.abs(self.f) ** 2) * R / 2.)
+        d2 = 2. * np.sqrt((beta * self.dP / self.rho ) * delta * edelta -
+                          (R * np.abs(self.f) / 2. ) ** 2)
+
+        Z = (1./R) * (n1 + R * ((n2 / d2) - (np.abs(self.f) / 2.)) / d2 - np.abs(self.f) * R / 2.)
+
+        #nn1 = np.sqrt((4.*beta*self.dP/self.rho) * delta * edelta + (self.f * R) ** 2.)
+        #nn2 = (beta*self.dP/self.rho)*delta*(2. + beta * (delta - 1.)) * edelta + (self.f * R) ** 2.
+        #dd2 = R + 4.*(beta*self.dP/self.rho) * delta * edelta + (self.f * R) ** 2.
+        #Z = -self.f + nn1 * (nn2 / dd2)
         # Calculate first and second derivatives at R = Rmax:
         d2Vm = self.secondDerivative()
         aa = ((d2Vm / 2 - (-1.0 *  self.vMax /
@@ -383,6 +402,7 @@ class HollandWindProfile(WindProfileModel):
         icore = np.where(R <= self.rMax)
         Z[icore] = R[icore] * (R[icore] * 4 * aa + 3 * bb) + 2 * cc
         Z = np.sign(self.f) * Z
+        log.debug("Vorticity: {0}, {1}".format(Z.min(), Z.max()))
         return Z
 
 
@@ -836,7 +856,7 @@ class WindFieldModel(object):
     (uniform) surface roughness.
 
     :param windProfileModel: A `wind.WindProfileModel` instance.
-    
+
     """
 
     def __init__(self, windProfileModel):
@@ -916,7 +936,7 @@ class HubbertWindField(WindFieldModel):
         inflow[core] = 0
         inflow = inflow * np.pi / 180
 
-        thetaMaxAbsolute = thetaFm + thetaMax
+        thetaMaxAbsolute = np.array(thetaFm) + thetaMax
         asym = vFm * np.cos(thetaMaxAbsolute - lam + np.pi)
         Vsf = Km * V + asym
         phi = inflow - lam
@@ -932,7 +952,7 @@ class McConochieWindField(WindFieldModel):
     McConochie, J.D., T.A. Hardy and L.B. Mason, 2004:
     Modelling tropical cyclone over-water wind and pressure fields.
     Ocean Engineering, 31, 1757-1782.
-     
+
     """
 
     def field(self, R, lam, vFm, thetaFm, thetaMax=0.):
@@ -958,7 +978,7 @@ class McConochieWindField(WindFieldModel):
         inflow[inner] = 10. * R[inner] / self.rMax
         inflow = inflow * np.pi / 180.
 
-        thetaMaxAbsolute = thetaFm + thetaMax
+        thetaMaxAbsolute = np.array(thetaFm) + thetaMax
         phi = inflow - lam
 
         asym = (0.5 * (1. + np.cos(thetaMaxAbsolute - lam)) * vFm * (V
@@ -986,7 +1006,7 @@ class KepertWindField(WindFieldModel):
     Kepert, J., 2001: The Dynamics of Boundary Layer Jets within the
     Tropical Cyclone Core. Part I: Linear Theory.  J. Atmos. Sci., 58,
     2469-2484
-    
+
     """
 
     def field(self, R, lam, vFm, thetaFm, thetaMax=0.):
@@ -1002,34 +1022,37 @@ class KepertWindField(WindFieldModel):
         :param float thetaMax: Bearing of the location of the maximum
                                wind speed, relative to the direction of
                                motion.
-                               
+
         """
         
         V = self.velocity(R)
         Z = self.vorticity(R)
         K = 50.  # Diffusivity
         Cd = 0.002  # Constant drag coefficient
+
+        Vm = np.abs(V).max()
+        if (vFm > 0) and (Vm/vFm < 5.):
+            Umod = vFm * (1. - (1. - Vm/vFm)/5.)
+        else:
+            Umod = vFm
+        Vt = Umod * np.ones(V.shape)
         
-        Vt = vFm * np.ones(V.shape)
-        
-        core = np.where(R > 4. * self.rMax)
-        Vt[core] = vFm * np.exp(-((R[core] / self.rMax) - 4.) ** 2. )
+        core = np.where(R > 2. * self.rMax)
+        Vt[core] = Umod * np.exp(-((R[core] / (2.*self.rMax)) - 1.) ** 2. )
         
         al = ((2. * V / R ) + self.f) / (2. * K)
         be = (self.f + Z) / (2. * K)
-        gam = V / (2. * K * R)
-        if self.f > 0:
-            gam *= -1.
+        gam = np.abs(V / (2. * K * R))
+
         albe = np.sqrt(al / be)
 
         ind = np.where(np.abs(gam) > np.sqrt(al * be))
-        chi = (Cd / K) * V / np.sqrt(np.sqrt(al * be))
-        eta = (Cd / K) * V / np.sqrt(np.sqrt(al * be) + np.abs(gam))
-        psi = (Cd / K) * V / np.sqrt(np.abs(np.sqrt(al * be) - gam))
+        chi = np.abs((Cd / K) * V / np.sqrt(np.sqrt(al * be)))
+        eta = np.abs((Cd / K) * V / np.sqrt(np.sqrt(al * be) + gam))
+        psi = np.abs((Cd / K) * V / np.sqrt(np.abs(np.sqrt(al * be) - gam)))
         
         i = complex(0., 1.)
-        A0 = (-chi * V * (1. + i * (1. + chi)) / (2. * chi ** 2. + 3.
-              * chi + 2.))
+        A0 = -chi * V * (1. + i * (1. + chi)) / (2. * chi ** 2. + 3. * chi + 2.)
 
         # Symmetric surface wind component
 
@@ -1038,20 +1061,20 @@ class KepertWindField(WindFieldModel):
 
         Am = (-(psi * (1. + 2. * albe + (1. + i) * (1. + albe) * eta))
               * Vt /
-             ( albe * ((2. + 2. * i) * (1 + eta * psi) + 
-              3. * psi + 3. * i * eta)) )
+             (albe * ((2. + 2. * i) * (1 + eta * psi) +
+              3. * psi + 3. * i * eta)))
 
         #Am[ind] = (-((1. + (1. + i) * eta[ind]) / albe[ind] +
         #           (2. + (1. + i) * eta[ind])) * psi[ind] * vFm /
         #           (2. - 2. * i + 3. * (psi[ind] + eta[ind])
         #            + (2. + 2. * i) * eta[ind] * psi[ind]))
-                    
-        AmIII = (-(psi * (1. + 2. * albe + (1. + i) * (1. + albe) * eta) 
-                * Vt) / 
-                ( albe * (2. - 2. * i + 3. * (eta + psi) + (2. + 2. * i) * 
+
+        AmIII = (-(psi * (1. + 2. * albe + (1. + i) * (1. + albe) * eta)
+                * Vt) /
+                ( albe * (2. - 2. * i + 3. * (eta + psi) + (2. + 2. * i) *
                 eta * psi)))
-                
-        Am[ind] = AmIII[ind]
+
+        #Am[ind] = AmIII[ind]
 
         # First asymmetric surface component
 
@@ -1062,22 +1085,22 @@ class KepertWindField(WindFieldModel):
         #      eta * vFm /
         #      ((2. + 2. * i) * (1. + eta * psi) + 3. * eta +
         #       3. * i * psi))
-               
+
         Ap = (-(eta * (1. - 2. * albe + (1. + i) * (1. - albe) * psi)) * Vt /
-                (albe * ((2. + 2. * i) * (1. + eta * psi) + 
-                3. * eta + 3. * i * psi)))               
+                (albe * ((2. + 2. * i) * (1. + eta * psi) +
+                3. * eta + 3. * i * psi)))
 
         #Ap[ind] = (-((1. + (1. - i) * psi[ind]) / albe[ind] -
         #             (2. + (1. - i) * psi[ind])) *
         #           eta[ind] * vFm /
         #           (2. + 2. * i + 3. * (eta[ind] + psi[ind]) +
         #            (2. - 2. * i) * eta[ind] * psi[ind]))
-                    
-        ApIII = (-(eta * (1. - 2. * albe + (1. - i) * (1. - albe) * psi) * Vt) / 
-                (albe * (2. + 2. * i + 3. * (eta + psi) 
+
+        ApIII = (-(eta * (1. - 2. * albe + (1. - i) * (1. - albe) * psi) * Vt) /
+                (albe * (2. + 2. * i + 3. * (eta + psi)
                 + (2. - 2. * i) * eta * psi)))
-                
-        Ap[ind] = ApIII[ind]
+
+        #Ap[ind] = ApIII[ind]
                   
         # Second asymmetric surface component
 
@@ -1086,7 +1109,7 @@ class KepertWindField(WindFieldModel):
 
         # Total surface wind in (moving coordinate system)
 
-        us = u0s + ups + ums
+        us = np.sign(self.f) * (u0s + ups + ums)
         vs = V + v0s + vps + vms
 
         usf = us + Vt * np.cos(lam - thetaFm)
