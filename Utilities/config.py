@@ -12,7 +12,7 @@
 
 import io
 from ConfigParser import RawConfigParser
-
+from Utilities.singleton import Singleton
 
 def parseBool(txt):
     """
@@ -52,7 +52,7 @@ def formatList(lst):
 
     """
 
-    return ','.join(map(str, lst))
+    return ','.join([str(l) for l in lst])
 
 
 FORMATERS = {
@@ -68,6 +68,7 @@ PARSERS = {
     'Actions_executewindfield': parseBool,
     'Actions_plotdata': parseBool,
     'Actions_plothazard': parseBool,
+    'Actions_createdatabase': parseBool,
     'Actions_downloaddata': parseBool,
     'Actions_executeevaluate': parseBool,
     'DataProcess_inputfile': str,
@@ -81,6 +82,7 @@ PARSERS = {
     'Hazard_samplesize': int,
     'Hazard_percentilerange': int,
     'Input_landmask': str,
+    'Input_locationfile': str,
     'Input_mslpgrid': parseList,
     'Logging_logfile': str,
     'Logging_loglevel': str,
@@ -112,7 +114,6 @@ PARSERS = {
     'TrackGenerator_numsimulations': int,
     'TrackGenerator_seasonseed': int,
     'TrackGenerator_trackseed': int,
-    'TrackGenerator_yearspersimulation': int,
     'TrackGenerator_numtimesteps': int,
     'TrackGenerator_timestep': float,
     'WindfieldInterface_beta': float,
@@ -138,6 +139,7 @@ ExecuteHazard=True
 ExecuteEvaluate=True
 PlotData=True
 PlotHazard=True
+CreateDatabase=True
 DownloadData=True
 
 [Region]
@@ -158,7 +160,6 @@ minSamplesCell=100
 
 [TrackGenerator]
 NumSimulations=500
-YearsPerSimulation=1
 NumTimeSteps=360
 TimeStep=1.0
 Format=csv
@@ -189,6 +190,7 @@ PlotSpeedUnits=mps
 GetRMWDistFromInputData=False
 
 [Input]
+LocationFile=input/stationlist.shp
 LandMask=input/landmask.nc
 MSLPFile=MSLP/slp.day.ltm.nc
 Datasets=IBTRACS,LTMSLP
@@ -230,31 +232,19 @@ filename=slp.day.ltm.nc
 
 """
 
-
-def singleton(cls):
-    instances = {}
-
-    def getinstance(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    return getinstance
-
-
-@singleton
-class ConfigParser(RawConfigParser):
+class _ConfigParser(RawConfigParser, Singleton):
 
     """
     A configuration file parser that extends
     :class:`ConfigParser.RawConfigParser` with a few helper functions
     and default options.
     """
-
+    ignoreSubsequent = True
     def __init__(self, defaults=DEFAULTS):
         RawConfigParser.__init__(self)
         self.readfp(io.BytesIO(defaults))
         self.readonce = False
-
+        
     def geteval(self, section, option):
         """
         :param str section: Section name to evaluate.
@@ -302,7 +292,7 @@ class ConfigParser(RawConfigParser):
                 parsed[name] = value
         return parsed.items()
 
-    def set(self, section, option, value):
+    def set(self, section, option, value=None):
         """
         Set the value of a specific section and option in the configuration.
 
@@ -319,6 +309,8 @@ class ConfigParser(RawConfigParser):
             newvalue = value
         RawConfigParser.set(self, section, option, newvalue)
 
+def ConfigParser(defaults=DEFAULTS):
+    return _ConfigParser.getInstance(defaults)
 
 def cnfGetIniValue(configFile, section, option, default=None):
     """
@@ -339,10 +331,18 @@ def cnfGetIniValue(configFile, section, option, default=None):
     """
     config = ConfigParser()
     config.read(configFile)
+
+    if not config.has_section(section):
+        return default
     if not config.has_option(section, option):
         return default
+
     if default is None:
-        return config.get(section, option)
+        try:
+            res = config.geteval(section, option)
+        except (NameError, SyntaxError):
+            res = config.get(section, option)
+        return res
     if isinstance(default, str):
         return config.get(section, option)
     if isinstance(default, bool):

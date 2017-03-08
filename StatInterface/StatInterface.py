@@ -28,14 +28,14 @@ class StatInterface(object):
     Main interface to the statistical analysis module of TCRM. This
     module generates cumulative distribution functions and probability
     density functions of the various parameters, largely using kernel
-    density estimation methods. 
+    density estimation methods.
 
     :param str configFile: Path to configuration file.
     :param autoCalc_gridLimit: function to calculate the extent of a domain.
     :param progressBar: a :meth:`SimpleProgressBar` object to print
                         progress to STDOUT.
-   
-    
+
+
     """
 
     def __init__(self, configFile, autoCalc_gridLimit=None,
@@ -51,7 +51,6 @@ class StatInterface(object):
         log.info("Initialising StatInterface")
 
         self.kdeType = config.get('StatInterface', 'kdeType')
-        self.kde2DType = config.get('StatInterface','kde2DType')
         minSamplesCell = config.getint('StatInterface', 'minSamplesCell')
         self.kdeStep = config.getfloat('StatInterface', 'kdeStep')
         self.outputPath = config.get('Output', 'Path')
@@ -92,23 +91,23 @@ class StatInterface(object):
     def kdeOrigin(self):
         """
         Generate 2D PDFs relating to the origin of cyclones.
-        
+
         """
         log.info('Generating 2D PDF of TC origins')
         log.debug('Reading data from %s',
                   pjoin(self.processPath, 'origin_lon_lat'))
 
-        kde = KDEOrigin.KDEOrigin(self.configFile, self.kde2DType,
+        kde = KDEOrigin.KDEOrigin(self.configFile,
                                   self.gridLimit, 0.1,
                                   progressbar=self.progressbar)
-        kde.generateKDE(None, save=True)
+        kde.generateKDE(save=True, plot=True)
         kde.generateCdf()
 
     def kdeGenesisDate(self):
         """
         Generate CDFs relating to the genesis day-of-year of cyclones
         for each grid cell in teh model domain.
-        
+
         """
         log.info('Generating CDFs for TC genesis day')
         log.debug('Reading data from %s',
@@ -119,14 +118,14 @@ class StatInterface(object):
         #kde.generateGenesisDateCDF(jdays, lonLat, bw=14,
         #                           genesisKDE=pjoin(self.processPath,
         #                                            'cdfGenesisDays'))
-        self.generateDist.allDistributions(lonLat, pList, 'init_day', 
+        self.generateDist.allDistributions(lonLat, pList, 'init_day',
                                            kdeStep=0.25, periodic=365)
 
     def cdfCellBearing(self):
         """
         Generate CDFs relating to the bearing of cyclones for each
         grid cell in the model domain.
-        
+
         """
         log.info('Generating CDFs for TC bearing')
         log.debug('Reading data from %s',
@@ -145,7 +144,7 @@ class StatInterface(object):
         """
         Generate CDFs relating to the speed of motion of cyclones for each
         grid cell in the model domain.
-        
+
         """
         log.info('Generating CDFs for TC speed')
         log.debug('Reading data from %s',
@@ -163,9 +162,9 @@ class StatInterface(object):
 
     def cdfCellPressure(self):
         """
-        Generate CDFs relating to the pressures of cyclones 
+        Generate CDFs relating to the pressures of cyclones
         in each grid cell in the model domain.
-        
+
         """
         log.info('Generating CDFs for TC pressure')
         log.debug('Reading data from %s',
@@ -185,7 +184,7 @@ class StatInterface(object):
         """
         Generate CDFs relating to the size (radius of maximum wind)
         of cyclones in each grid cell in the model domain.
-        
+
         """
         log.info('Generating CDFs for TC size')
         log.debug('Reading data from %s',
@@ -217,7 +216,7 @@ class StatInterface(object):
         An optional :attr:`minSample` (default=100) can be given which
         sets the minimum number of observations in a given cell to
         calculate the statistics.
-        
+
         """
 
         path = self.processPath
@@ -238,20 +237,20 @@ class StatInterface(object):
         log.debug('Calculating cell statistics for speed')
         vStats = calculate('all_speed')
         vStats.plotStatistics(pjoin(self.outputPath, 'plots',
-                                     'stats','speed_stats'))
+                                    'stats', 'speed_stats'))
         log.debug('Saving cell statistics for speed to netcdf file')
         vStats.save(pjoin(path, 'speed_stats.nc'), 'speed')
-        
+
         dvStats = calculate('speed_rate')
         dvStats.plotStatistics(pjoin(self.outputPath, 'plots',
-                                     'stats','speed_rate_stats'))
+                                     'stats', 'speed_rate_stats'))
         log.debug('Saving cell statistics for speed rate to netcdf file')
         dvStats.save(pjoin(path, 'speed_rate_stats.nc'), 'speed_rate')
-        
+
         log.debug('Calculating cell statistics for pressure')
         pStats = calculate('all_pressure')
         pStats.plotStatistics(pjoin(self.outputPath, 'plots',
-                                     'stats','pressure_stats'))
+                                    'stats', 'pressure_stats'))
         log.debug('Saving cell statistics for pressure to netcdf file')
         pStats.save(pjoin(path, 'pressure_stats.nc'), 'pressure')
 
@@ -259,22 +258,22 @@ class StatInterface(object):
                   ' of change')
         dpStats = calculate('pressure_rate')
         dpStats.plotStatistics(pjoin(self.outputPath, 'plots',
-                                     'stats','pressure_rate_stats'))
+                                     'stats', 'pressure_rate_stats'))
 
         log.debug('Saving cell statistics for pressure rate to netcdf file')
         dpStats.save(pjoin(path, 'pressure_rate_stats.nc'), 'pressure_rate')
-        
+
         log.debug('Calculating cell statistics for bearing')
         bStats = calculate('all_bearing', angular=True)
         bStats.plotStatistics(pjoin(self.outputPath, 'plots',
-                                     'stats','bearing_stats'))
+                                    'stats', 'bearing_stats'))
         log.debug('Saving cell statistics for bearing to netcdf file')
         bStats.save(pjoin(path, 'bearing_stats.nc'), 'bearing')
 
         log.debug('Calculating cell statistics for bearing rate of change')
-        bStats = calculate('bearing_rate', angular=True)
-        bStats.plotStatistics(pjoin(self.outputPath, 'plots',
-                                     'stats','bearing_rate_stats'))
+        dbStats = calculate('bearing_rate', angular=True)
+        dbStats.plotStatistics(pjoin(self.outputPath, 'plots',
+                                     'stats', 'bearing_rate_stats'))
         log.debug('Saving cell statistics for bearing to netcdf file')
-        bStats.save(pjoin(path, 'bearing_rate_stats.nc'), 'bearing_rate')
+        dbStats.save(pjoin(path, 'bearing_rate_stats.nc'), 'bearing_rate')
 

@@ -23,7 +23,6 @@ import logging
 import numpy as np
 
 from Utilities.grid import SampleGrid
-from Utilities import pathLocator
 from Utilities.config import ConfigParser
 
 log = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ class LandfallDecay:
     since the storm made landfall.
 
     """
-    
+
     def __init__(self, configFile, dt):
         """
         Initialise required fields
@@ -80,7 +79,7 @@ class LandfallDecay:
 
         :rtype: boolean
         :return: True if TC is over land, False otherwise
-        
+
         """
 
         if self.landMask.sampleGrid(cLon, cLat) > 0.0:
@@ -108,7 +107,7 @@ class LandfallDecay:
 
         :rtype: float
         :return: revised central pressure
-        
+
         """
         deltaP = pEnv - pCentre
         a0 = 0.008

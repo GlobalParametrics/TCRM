@@ -22,24 +22,14 @@ import numpy.ma as ma
 import matplotlib
 matplotlib.use('Agg', warn=False)
 
-try:
-    from mpl_toolkits.basemap import Basemap
-    NO_BASEMAP = False
-except ImportError:
-    NO_BASEMAP = True
-    logging.warn('Basemap package not installed. Disabling some plots')
-
 from os.path import join as pjoin
 
 from Utilities.config import ConfigParser
 
 from Utilities.maputils import find_index
 import Utilities.nctools as nctools
-from Utilities.smooth import smooth
 from Utilities import pathLocator
 from Utilities import metutils
-from Utilities import colours
-#from Utilities.progressbar import ProgressBar
 
 from PlotInterface.maps import saveHazardMap
 from PlotInterface.curves import saveHazardCurve
@@ -80,7 +70,7 @@ class AutoPlotHazard(object):
         config = ConfigParser()
         config.read(configFile)
 
-        outputPath = config.get('Output','Path')
+        outputPath = config.get('Output', 'Path')
 
         try:
             self.localityID = config.get('Region', 'LocalityID')
@@ -103,8 +93,9 @@ class AutoPlotHazard(object):
             lon = lon - 360.
 
         [xgrid, ygrid] = np.meshgrid(lon, lat)
+        dmask = inputData.mask
         inputData = metutils.convert(inputData, 'mps', self.plotUnits.units)
-
+        inputData = ma.array(inputData, mask=dmask)
         map_kwargs = dict(llcrnrlon=xgrid.min(),
                           llcrnrlat=ygrid.min(),
                           urcrnrlon=xgrid.max(),
@@ -113,7 +104,7 @@ class AutoPlotHazard(object):
                           resolution='i')
 
         for i, year in enumerate(years):
-            log.debug("Plotting %d-year return period hazard map"%(year))
+            log.debug("Plotting %d-year return period hazard map", year)
             title = '%d-Year Return Period Cyclonic Wind Hazard' % (year)
             imageFilename = '%d_yrRP_hazard_map.png' % (year)
             filename = pjoin(self.plotPath, imageFilename)
@@ -155,7 +146,7 @@ class AutoPlotHazard(object):
             ncobj.close()
             del ncobj
         except:
-            self.logger.critical("Cannot load input file: %s"%inputFile)
+            log.critical("Cannot load input file: %s"%inputFile)
             try:
                 ncobj.close()
             except (IOError, KeyError, RuntimeError):
@@ -163,7 +154,7 @@ class AutoPlotHazard(object):
             raise
 
         # Create a masked array:
-        mask = (data==mv)
+        mask = (data == mv)
         mdata = ma.array(data, mask=mask)
         return lon, lat, years, mdata
 
@@ -180,15 +171,15 @@ class AutoPlotHazard(object):
                   within the model domain.
 
         """
-        
+
         # If locality is not found in domain, revert to plotting return
         # curves for all localities in domain:
         self.sqlcur.execute(('select placename from localities where lon > ? '
                              'and lon < ? and lat > ? and lat < ? '
                              'and placeID = ?'),
-                             (minLon, maxLon,
-                              minLat, maxLat,
-                              str(self.localityID)))
+                            (minLon, maxLon,
+                             minLat, maxLat,
+                             str(self.localityID)))
 
         if len([z[0] for z in self.sqlcur.fetchall()]) == 0:
             self.localityID = -99999
@@ -197,11 +188,11 @@ class AutoPlotHazard(object):
             self.sqlcur.execute(('select placename, parentcountry, lat, lon '
                                  'from localities where lon > ? and lon < ? '
                                  'and lat > ? and lat < ?'),
-                                 (minLon, maxLon, minLat, maxLat))
+                                (minLon, maxLon, minLat, maxLat))
         else:
             self.sqlcur.execute(('select placename, parentcountry, lat, lon '
                                  'from localities where placeID = ?'),
-                                 (str(self.localityID),))
+                                (str(self.localityID),))
 
         placeNames, parentCountries, placeLats, placeLons = \
             zip(*self.sqlcur.fetchall())
@@ -211,7 +202,7 @@ class AutoPlotHazard(object):
         placeLons = list(placeLons)
 
         return placeNames, parentCountries, placeLats, placeLons
-    
+
     def plotHazardCurves(self, inputFile, plotPath):
         """
         Plot the hazard values stored in hazardFile, at the stns
@@ -231,14 +222,14 @@ class AutoPlotHazard(object):
             raise
 
         # Load data
-        wspd = nctools.ncGetData(ncobj, 'wspd')
-        try:
-            wLower  = nctools.ncGetData(ncobj, 'wspdlower')
-            wUpper = nctools.ncGetData(ncobj, 'wspdupper')
-            ciBounds = True
-        except KeyError:
-            ciBounds = False
-        ncobj.close()
+        #wspd = nctools.ncGetData(ncobj, 'wspd')
+        #try:
+        #    wLower = nctools.ncGetData(ncobj, 'wspdlower')
+        #    wUpper = nctools.ncGetData(ncobj, 'wspdupper')
+        ciBounds = True
+        #except KeyError:
+        #    ciBounds = False
+        #ncobj.close()
 
         minLon = min(lon)
         maxLon = max(lon)
@@ -247,12 +238,12 @@ class AutoPlotHazard(object):
 
         # Use the same maximum value for all localities to simplify
         # intercomparisons:
-        defaultMax = np.ceil(metutils.convert(100.0, 'mps',
-                                              self.plotUnits.units)/10.0)*10.0
-        
+        #defaultMax = np.ceil(metutils.convert(100.0, 'mps',
+        #                                      self.plotUnits.units)/10.0)*10.0
+
         placeNames, parentCountries, placeLats, placeLons = \
             self.getLocations(minLon, maxLon, minLat, maxLat)
-        
+
         for name, plat, plon, country in zip(placeNames, placeLats,
                                              placeLons, parentCountries):
 
@@ -267,17 +258,27 @@ class AutoPlotHazard(object):
 
             name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore')
             name.replace(' ', '')
-            filename = pjoin(plotPath, 'ARI_curve_%s.%s'%(name,"png"))
+            filename = pjoin(plotPath, 'ARI_curve_%s.%s'%(name, "png"))
             log.debug("Saving hazard curve for %s to %s"%(name, filename))
-            placeWspd = metutils.convert(wspd[:, j, i], 'mps',
+            wspd = ncobj.variables['wspd'][:, j, i]
+            
+
+            placeWspd = metutils.convert(wspd, 'mps',
                                          self.plotUnits.units)
-            maxWspd = placeWspd.max()
+            if np.all(placeWspd.mask):
+                log.debug("All values for {0} are null".format(name))
+                continue
+
             if ciBounds:
-                placeWspdLower = metutils.convert(wLower[:,j,i], 'mps',
+                wspdLower = ncobj.variables['wspdlower'][:, j, i]
+                wspdUpper = ncobj.variables['wspdupper'][:, j, i]
+                placeWspdLower = metutils.convert(wspdLower, 'mps',
                                                   self.plotUnits.units)
-                placeWspdUpper  = metutils.convert(wUpper[:,j,i], 'mps',
-                                                   self.plotUnits.units)
-                
+                placeWspdUpper = metutils.convert(wspdUpper, 'mps',
+                                                  self.plotUnits.units)
+
             saveHazardCurve(years, placeWspd, placeWspdUpper, placeWspdLower,
                             xlabel, ylabel, title, filename)
+
+        ncobj.close()
 

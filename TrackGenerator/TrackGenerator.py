@@ -21,12 +21,121 @@ Alternatively, it can be run from the command line::
 
     $ python TrackGenerator.py cairns.ini
 
+
+Track format
+------------
+
+Tracks are stored in netCDF4 format files, making use of the compound
+variable types and heirarchical group structure available in this
+version of netCDF. Each event is contained as a separate group in the
+file, and each file contains a simulation 'year' (though in the case
+of multi-year simulations, multiple years are contained in the file).
+
+Here's an example that shows the group structure in a track file. The
+track file contains five tracks, each with only two variables - 'time'
+and 'track'::
+
+    >>> from netCDF4 import Dataset
+    >>> rootgrp = Dataset("tracks.00001.nc", "r")
+    >>> print rootgrp.groups
+    OrderedDict([(u'tracks', <netCDF4.Group object at 0x04B92E88>)])
+    >>> def walktree(top):
+    >>>  values = top.groups.values()
+    >>>  yield values
+    >>>  for value in top.groups.values():
+    >>>   for children in walktree(value):
+    >>>    yield children
+
+    >>> print rootgrp
+    <type 'netCDF4.Dataset'>
+    root group (NETCDF4 file format):
+        created_on: 2015-09-23 14:12:20
+        created_by: u12161
+        dimensions:
+        variables:
+        groups: tracks
+
+    >>> for children in walktree(rootgrp):
+    >>>  for child in children:
+    >>>   print child
+
+    <type 'netCDF4.Group'>
+    group /tracks:
+        dimensions:
+        variables:
+        groups: tracks-0000, tracks-0001, tracks-0002, tracks-0003, tracks-0004
+
+    <type 'netCDF4.Group'>
+    group /tracks\tracks-0000:
+        dimensions: time
+        variables: time, track
+        groups:
+
+    <type 'netCDF4.Group'>
+    group /tracks\tracks-0001:
+        dimensions: time
+        variables: time, track
+        groups:
+
+    <type 'netCDF4.Group'>
+    group /tracks\tracks-0002:
+        dimensions: time
+        variables: time, track
+        groups:
+
+    <type 'netCDF4.Group'>
+    group /tracks\tracks-0003:
+        dimensions: time
+        variables: time, track
+        groups:
+
+    <type 'netCDF4.Group'>
+    group /tracks\tracks-0004:
+        dimensions: time
+        variables: time, track
+        groups:
+
+The 'time' variable is an unlimited dimension representing the length
+of the track in hours since genesis.
+
+The 'track' variable is a compound variable akin to a
+:class:`numpy.recarray`. Here's an example of the summary of a 'track'
+variable (taking the last track from the previous example)::
+
+    >>> print child.variables['track']
+    <type 'netCDF4.Variable'>
+    compound track(time)
+        long_name: Tropical cyclone track data
+        time_units: hours since 1900-01-01 00:00
+        calendar: julian
+        lon_units: degrees east
+        lat_units: degrees north
+        pressure_units: hPa
+        speed_units: m/s
+        length_units: km
+        trackId: (5, 1)
+    compound data type: {'names':[u'CycloneNumber',u'Datetime',u'TimeElapsed',
+                                  u'Longitude',u'Latitude',u'Speed',
+                                  u'Bearing',u'CentralPressure',
+                                  u'EnvPressure',u'rMax'],
+                         'formats':['<i4','<f8','<f4','<f8','<f8','<f8',
+                                    '<f8','<f8','<f8','<f8'],
+                         'offsets':[0,8,16,24,32,40,48,56,64,72],
+                         'itemsize':80}
+    path = /tracks\tracks-0004
+    unlimited dimensions: time
+    current shape = (220,)
+
+A thorough explanation of the netcdf4-python API is given on the
+`Unidata Github page <http://unidata.github.io/netcdf4-python/>`_.
+
 """
 
 import os
 import sys
 import logging as log
 import math
+import time
 import itertools
 import numpy as np
 
@@ -34,6 +143,7 @@ from datetime import datetime, timedelta
 
 import Utilities.stats as stats
 import trackLandfall
+import trackSize
 import Utilities.nctools as nctools
 import Utilities.Cmap as Cmap
 import Utilities.Cstats as Cstats
@@ -53,6 +163,8 @@ from DataProcess.CalcTrackDomain import CalcTrackDomain
 from Utilities.config import ConfigParser
 from Utilities.interp3d import interp3d
 from Utilities.parallel import attemptParallel
+from Utilities.track import ncSaveTracks, Track, TCRM_COLS, TCRM_FMTS
+from Utilities.loadData import getPoci
 
 class SamplePressure(object):
     """
@@ -62,7 +174,7 @@ class SamplePressure(object):
     :param str mslp_file: path to a 3-d (time, lat, lon) MSLP
                           netcdf file.
     :param str var: Variable name (assumed 'slp')
-    
+
     """
     def __init__(self, mslp_file, var='slp'):
         ncobj = nctools.ncLoadFile(mslp_file)
@@ -71,7 +183,7 @@ class SamplePressure(object):
 
         data = metutils.convert(data, slpunits, 'hPa')
         self.data = spline_filter(data)
-        
+
     def get_pressure(self, coords):
         """
         Interpolate daily long term mean sea level pressure at
@@ -82,7 +194,7 @@ class SamplePressure(object):
         :return: long term MSLP
 
         """
-        
+
         scale = [365., 180., 360.]
         offset = [0., -90., 0.]
         mslp = interp3d(self.data, coords, scale, offset, prefilter=False)
@@ -142,25 +254,21 @@ class TrackGenerator(object):
     :param maxTimeSteps: the maximum number of tropical cyclone time
                          steps that will be simulated.
 
-    :type  sizeMean: float (default: 57.0)
+    :type  sizeMean: float (default: 46.5.0)
     :param sizeMean: the fallback average tropical cyclone size to use
                      when the empirical distribution data cannot be
-                     loaded from file. The default value is taken from
-                     McConochie et al. (2004)
+                     loaded from file.
 
-
-    :type  sizeStdDev: float (default: 0.6)
+    :type  sizeStdDev: float (default: 0.5)
     :param sizeStdDev: the fallback standard deviation of the tropical
                        cyclone size to use when the empirical
                        distribution data cannot be loaded from file.
-                       The default value is taken from McConochie et al.
-                       (2004).
 
     """
 
     def __init__(self, processPath, gridLimit, gridSpace, gridInc, mslp,
                  landfall, innerGridLimit=None, dt=1.0, maxTimeSteps=360,
-                 sizeMean=57.0, sizeStdDev=0.6):
+                 sizeMean=46.5, sizeStdDev=0.5):
         self.processPath = processPath
         self.gridLimit = gridLimit
         self.gridSpace = gridSpace
@@ -265,7 +373,7 @@ class TrackGenerator(object):
 
         self.allCDFInitPressure = \
             load(pjoin(path, 'all_cell_cdf_init_pressure'))
-            
+
         self.allCDFInitDay = \
             load(pjoin(path, 'all_cell_cdf_init_day'))
 
@@ -274,9 +382,7 @@ class TrackGenerator(object):
                                              'all_cell_cdf_init_rmax'))
 
         except IOError:
-            log.warning('RMW distribution file does not exist!' +
-                        ' Assuming lognormal with mean %f and stdev %f.'
-                        % (self.sizeMean, self.sizeStdDev))
+            log.warning('RMW distribution file does not exist. Using RMW model instead.')
             self.cdfSize = np.array(stats.rMaxDist(self.sizeMean,
                                                    self.sizeStdDev,
                                                    maxrad=120.0)).T
@@ -325,7 +431,7 @@ class TrackGenerator(object):
         self.dpStats = init('pressure_rate')
         self.dpStats.load(pjoin(self.processPath, 'pressure_rate_stats.nc'))
 
-    def generateTracks(self, nTracks, initLon=None, initLat=None,
+    def generateTracks(self, nTracks, simId, initLon=None, initLat=None,
                        initSpeed=None, initBearing=None,
                        initPressure=None, initEnvPressure=None,
                        initRmax=None, initDay=None):
@@ -375,11 +481,51 @@ class TrackGenerator(object):
         :rtype :class:`numpy.array`
         :return: the tracks generated.
         """
+        # Define some filter functions
+
+        def empty(track):
+            """
+            :return: True if the track is empty. False, otherwise.
+            """
+            return len(track.Longitude) == 0
+
+        def diedEarly(track, minAge=12):
+            """
+            :return: True if the track dies before `minAge`. False,
+            otherwise.
+            """
+            return track.TimeElapsed[-1] < minAge
+
+        def insideDomain(track):
+            """
+            :return: True if the track stays inside the domain. False,
+            otherwise.
+            """
+            inside = [track.Longitude[k] > self.innerGridLimit['xMin'] and
+                      track.Longitude[k] < self.innerGridLimit['xMax'] and
+                      track.Latitude[k] > self.innerGridLimit['yMin'] and
+                      track.Latitude[k] < self.innerGridLimit['yMax']
+                      for k in range(len(track.Longitude))]
+            return all(inside)
+
+        def validPressures(track):
+            """
+            :return: True if a valid pressure. False, otherwise.
+            """
+            return all(np.round(track.CentralPressure, 2) < np.round(track.EnvPressure, 2))
+
+        def validSize(track):
+            """
+            :return: True if all rmax values are > 5.0 km, False otherwise.
+            """
+            return all(track.rMax > 5.)
 
         log.debug('Generating %d tropical cyclone tracks', nTracks)
-        genesisYear = int(uniform(1900,9998))
+        genesisYear = int(uniform(1900, 9998))
         results = []
-        for j in range(1, nTracks + 1):
+        j = 0
+        while j < nTracks:
+        #for j in range(1, nTracks + 1):
 
             if not (initLon and initLat):
                 log.debug('Cyclone origin not given, sampling a' +
@@ -388,7 +534,7 @@ class TrackGenerator(object):
                     self.originSampler.ppf(uniform(), uniform())
             else:
                 log.debug('Using prescribed initial position' +
-                          ' (%6.2f, %6.2f)'.format(initLon, initLat))
+                          ' ({0:.2f}, {1:.2f})'.format(initLon, initLat))
                 genesisLon = initLon
                 genesisLat = initLat
 
@@ -420,29 +566,18 @@ class TrackGenerator(object):
             else:
                 genesisSpeed = initSpeed
 
-            # Sample an initial maximum radius if none is provided
 
-            if not initRmax:
-                if not self.allCDFInitSize:
-                    cdfSize = self.cdfSize[:, [0, 2]]
-                else:
-                    ind = self.allCDFInitSize[:, 0] == initCellNum
-                    cdfSize = self.allCDFInitSize[ind, 1:3]
-                genesisRmax = ppf(uniform(), cdfSize)
-            else:
-                genesisRmax = initRmax
-                
             # Sample an initial day if none is provided
 
             if not initDay:
-                ind = self.allCDFInitDay[:,0] == initCellNum
+                ind = self.allCDFInitDay[:, 0] == initCellNum
                 cdfInitDay = self.allCDFInitDay[ind, 1:3]
                 genesisDay = ppf(uniform(), cdfInitDay)
             else:
                 genesisDay = initDay
-            
-            genesisHour = int(uniform(0,24))
-            
+
+            genesisHour = int(uniform(0, 24))
+
             initTimeStr = "%04d-%03d %d:00" % (genesisYear, genesisDay, genesisHour)
             genesisTime = datetime.strptime(initTimeStr, "%Y-%j %H:%M")
 
@@ -453,7 +588,7 @@ class TrackGenerator(object):
                 initEnvPressure = self.mslp.get_pressure(np.array([[genesisDay],
                                                           [genesisLat],
                                                           [genesisLon]]))
-                                                       
+
             # Sample an initial pressure if none is provided
 
             if not initPressure:
@@ -467,7 +602,28 @@ class TrackGenerator(object):
                                       cdfInitPressure)
             else:
                 genesisPressure = initPressure
-                                                       
+                
+            # Sample an initial maximum radius if none is provided
+
+            if not initRmax:
+                if not self.allCDFInitSize:
+                    cdfSize = self.cdfSize[:, [0, 2]]
+                else:
+                    ind = self.allCDFInitSize[:, 0] == initCellNum
+                    cdfSize = self.allCDFInitSize[ind, 1:3]
+
+                dp = initEnvPressure - genesisPressure
+                self.rmwEps = np.random.normal(0, scale=0.357)
+                genesisRmax = trackSize.rmax(dp, genesisLat, self.rmwEps)
+
+                # Censor the initial Rmax to be < 100 km.
+                if genesisRmax > 100.:
+                    while genesisRmax > 100.:
+                        self.rmwEps = np.random.normal(0, scale=0.357)
+                        genesisRmax = trackSize.rmax(dp, genesisLat, self.rmwEps)
+                
+            else:
+                genesisRmax = initRmax
             # Do not generate tracks from this genesis point if we are
             # going to exit the domain on the first step
 
@@ -495,50 +651,31 @@ class TrackGenerator(object):
             log.debug('** Generating track %i from point (%.2f,%.2f)',
                       j, genesisLon, genesisLat)
 
-            track = self._singleTrack(j, genesisLon, genesisLat,
-                                      genesisSpeed, genesisBearing,
-                                      genesisPressure, initEnvPressure,
-                                      genesisRmax, genesisTime)
+            data = self._singleTrack(j, genesisLon, genesisLat,
+                                     genesisSpeed, genesisBearing,
+                                     genesisPressure, initEnvPressure,
+                                     genesisRmax, genesisTime)
 
-            results.append(track)
-
-        # Define some filter functions
-
-        def empty(track):
-            """
-            :return: True if the track is empty. False, otherwise.
-            """
-            index, dates, age, lon, lat, speed, bearing, P, penv, rmax = track
-            return len(lon) == 0
-
-        def diedEarly(track, minAge=12):
-            """
-            :return: True if the track dies before `minAge`. False,
-            otherwise.
-            """
-            index, dates, age, lon, lat, speed, bearing, P, penv, rmax = track
-            return age[-1] < minAge
-
-        def insideDomain(track):
-            """
-            :return: True if the track stays inside the domain. False,
-            otherwise.
-            """
-            index, dates, age, lon, lat, speed, bearing, P, penv, rmax = track
-            inside = [lon[k] > self.innerGridLimit['xMin'] and
-                      lon[k] < self.innerGridLimit['xMax'] and
-                      lat[k] > self.innerGridLimit['yMin'] and
-                      lat[k] < self.innerGridLimit['yMax']
-                      for k in range(len(lon))]
-            return all(inside)
-
-        def validPressures(track):
-            """
-            :return: True if a valid pressure. False, otherwise.
-            """
-            index, dates, age, lon, lat, speed, bearing, P, eP, rmax = track
-            return all(np.round(P, 2) < np.round(eP, 2))
-
+            track_dtype = np.dtype({'names':TCRM_COLS, 'formats':TCRM_FMTS})
+            data = np.array(data)
+            data = np.core.records.fromarrays(data, dtype=track_dtype)
+            track = Track(data)
+            track.trackId = (j, simId)
+                        
+            if not (empty(track) or diedEarly(track)) \
+               and validPressures(track) and validSize(track):
+                if self.innerGridLimit and not insideDomain(track):
+                    log.debug("Track exits inner grid limit - rejecting")
+                    continue
+                else:
+                    results.append(track)
+                    log.debug("Completed track {0:03d}-{1:04d}".\
+                              format(*track.trackId))
+                    j += 1
+            else:
+                log.debug("Eliminated invalid track")
+        
+        """
         # Filter the generated tracks based on certain criteria
         nbefore = len(results)
         results = [track for track in results if not empty(track)]
@@ -559,17 +696,12 @@ class TrackGenerator(object):
             results = [track for track in results if insideDomain(track)]
             log.debug('Removed %i tracks that do not pass inside' +
                       ' domain.', nbefore - len(results))
+        """
+        # Return the tracks:
 
-        # Return the tracks as a stacked array
-        
-        if len(results) > 1:
-            return np.hstack([np.vstack(r) for r in results]).T
-        else:
-            return np.array(results).T
-            
         return results
-        
-    def generateTracksToFile(self, outputFile, nTracks, initLon=None,
+
+    def generateTracksToFile(self, outputFile, nTracks, simId, initLon=None,
                              initLat=None, initSpeed=None,
                              initBearing=None, initPressure=None,
                              initEnvPressure=None, initRmax=None,
@@ -587,9 +719,12 @@ class TrackGenerator(object):
                            file. Otherwise, the tracks will be saved in
                            csv format.
         """
+        """
+        #TODO: Here, `results` is a collection of `Track` objects, but the 
+        #      previous generation had `results` as an array holding the track data.
 
         results = self.generateTracks(
-            nTracks, initLon=initLon, initLat=initLat,
+            nTracks, simId, initLon=initLon, initLat=initLat,
             initSpeed=initSpeed, initBearing=initBearing,
             initPressure=initPressure,
             initEnvPressure=initEnvPressure,
@@ -696,6 +831,7 @@ class TrackGenerator(object):
 
             fl = AsyncRun(flSaveFile, args)
             fl.start()
+        """
 
     def _singleTrack(self, cycloneNumber, initLon, initLat, initSpeed,
                      initBearing, initPressure, initEnvPressure,
@@ -729,7 +865,7 @@ class TrackGenerator(object):
         :type  initRmax: float
         :param initRmax: the initial maximum radius of the tropical
                          cyclone.
-                         
+
         :type  initDay: float
         :param initDay: the initial day of year of the tropical cyclone.
 
@@ -756,13 +892,15 @@ class TrackGenerator(object):
         speed = np.empty(self.maxTimeSteps, 'f')
         bearing = np.empty(self.maxTimeSteps, 'f')
         pressure = np.empty(self.maxTimeSteps, 'f')
-        penv = np.empty(self.maxTimeSteps, 'f')
+        poci = np.empty(self.maxTimeSteps, 'f')
         rmax = np.empty(self.maxTimeSteps, 'f')
         land = np.empty(self.maxTimeSteps, 'i')
         dist = np.empty(self.maxTimeSteps, 'f')
 
         # Initialise the track
-
+        poci_eps = normal(0, 2.5717)
+        lfeps =  nct(7.7669, 10.93564, 0.008575, 0.007056)
+        #lfeps = nct(12.283, 8.559, -0.108, 0.0118)
         age[0] = 0
         dates[0] = initTime
         jday[0] = int(initTime.strftime("%j")) + initTime.hour/24.
@@ -771,16 +909,19 @@ class TrackGenerator(object):
         speed[0] = initSpeed
         bearing[0] = initBearing
         pressure[0] = initPressure
-        penv[0] = initEnvPressure
+        poci[0] = getPoci(initEnvPressure, initPressure,
+                          initLat, jday[0], poci_eps)
         rmax[0] = initRmax
         land[0] = 0
-        dist[0] = self.dt * initSpeed
+        dist[0] = self.dt * speed[0]
 
         timestep = timedelta(self.dt/24.)
 
         # Initialise variables that will be used when performing a step
 
         self.offshorePressure = initPressure
+        self.offshorePoci = poci[0]
+        self.landfallSpeed = initSpeed
         self.theta = initBearing
         self.v = initSpeed
         self.vChi = 0.0
@@ -816,10 +957,10 @@ class TrackGenerator(object):
             # Sample the environment pressure
 
             #penv[i] = self.mslp.sampleGrid(lon[i], lat[i])
-            penv[i] = self.mslp.get_pressure(np.array([[jday[i]],
-                                                      [lat[i]],
-                                                      [lon[i]]]))            
-
+            penv = self.mslp.get_pressure(np.array([[jday[i]],
+                                                    [lat[i]],
+                                                    [lon[i]]]))
+            
             # Terminate and return the track if it steps out of the
             # domain
 
@@ -830,10 +971,10 @@ class TrackGenerator(object):
 
                 log.debug('TC exited domain at point ' +
                           '(%.2f %.2f) and time %i', lon[i], lat[i], i)
-                
+
                 return (index[:i], dates[:i], age[:i], lon[:i], lat[:i],
                         speed[:i], bearing[:i], pressure[:i],
-                        penv[:i], rmax[:i])
+                        poci[:i], rmax[:i])
 
             cellNum = Cstats.getCellNum(lon[i], lat[i],
                                         self.gridLimit, self.gridSpace)
@@ -851,17 +992,18 @@ class TrackGenerator(object):
 
             bearing[i] = self.theta
             speed[i] = abs(self.v)  # reflect negative speeds
-            pressure[i] = pressure[i - 1] + self.dp * self.dt
 
             # Calculate the central pressure
 
             if onLand:
                 tol += float(self.dt)
-                deltaP = penv[i] - self.offshorePressure
-                alpha = 0.008 + 0.0008 * deltaP + normal(0, 0.001)
-                pressure[i] = (penv[i] - deltaP *
-                               np.exp(-alpha * tol))
+                deltaP = self.offshorePoci - self.offshorePressure
+                #alpha = -0.001479 + 0.001061 * deltaP + lfeps
+                alpha = 0.0115 + 0.00022 * deltaP + \
+                        0.0015 * self.landfallSpeed + lfeps
 
+                pressure[i] = poci[i - 1] - deltaP * np.exp(-alpha * tol)
+                poci[i] = getPoci(penv, pressure[i], lat[i], jday[i], poci_eps)
                 log.debug('Central pressure after landfall: %7.2f', pressure[i])
             else:
                 pstat = self.pStats.coeffs
@@ -879,7 +1021,10 @@ class TrackGenerator(object):
                                    abs(self.dp) * self.dt)
 
                 self.offshorePressure = pressure[i]
+                self.landfallSpeed = speed[i]
 
+                poci[i] = getPoci(penv, pressure[i], lat[i], jday[i], poci_eps)
+                self.offshorePoci = poci[i]
             # If the empirical distribution of tropical cyclone size is
             # loaded then sample and update the maximum radius.
             # Otherwise, keep the maximum radius constant.
@@ -892,7 +1037,9 @@ class TrackGenerator(object):
                 if rmax[i] <= 1.0:
                     rmax[i] = rmax[i - 1] - self.ds * self.dt
             else:
-                rmax[i] = rmax[i - 1]
+                dp = poci[i] - pressure[i]
+                rmax[i] = trackSize.rmax(dp, lat[i], self.rmwEps)
+                #rmax[i] = rmax[i - 1]
 
             # Update the distance and the age of the cyclone
 
@@ -900,16 +1047,17 @@ class TrackGenerator(object):
 
             # Terminate the track if it doesn't satisfy certain criteria
 
-            if self._notValidTrackStep(pressure[i], penv[i], age[i],
+            if self._notValidTrackStep(pressure[i], poci[i], age[i],
                                        lon[0], lat[0], lon[i], lat[i]):
                 log.debug('Track no longer satisfies criteria, ' +
                           'terminating at time %i.', i)
+
                 return (index[:i], dates[:i], age[:i], lon[:i], lat[:i],
-                        speed[:i], bearing[:i], pressure[:i], penv[:i],
+                        speed[:i], bearing[:i], pressure[:i], poci[:i],
                         rmax[:i])
 
-        return (index, dates, age, lon, lat, speed, bearing, pressure, 
-                penv, rmax)
+        return (index, dates, age, lon, lat, speed, bearing, pressure,
+                poci, rmax)
 
     def _stepPressureChange(self, c, i, onLand):
         """
@@ -950,7 +1098,7 @@ class TrackGenerator(object):
             self.dp += sigma[c] * self.dpChi
         else:
             self.dp = mu[c] + sigma[c] * self.dpChi
-            
+
     def _stepBearing(self, c, i, onLand):
         """
         Take one step of the bearing model.
@@ -1079,20 +1227,21 @@ class TrackGenerator(object):
         else:
             self.ds = mu[c] + sigma[c] * self.dsChi
 
-    def _notValidTrackStep(self, pressure, penv, age, lon0, lat0,
+    def _notValidTrackStep(self, pressure, poci, age, lon0, lat0,
                            nextlon, nextlat):
         """
         This is called to check if a tropical cyclone track meets
         certain conditions.
         """
-
-        if age > 12 and ((penv - pressure) < 5.0):
-            log.debug('Pressure difference < 5.0' +
-                      ' (penv: %f pressure: %f)', penv, pressure)
+        if np.isnan(poci):
             return True
-        elif age <= 12 and ((penv - pressure) < 1.0):
-            log.debug('Pressure difference < 1.0' +
-                      ' (penv: %f pressure: %f)', penv, pressure)
+        if age > 12 and ((poci - pressure) < 5.0):
+            log.debug('Pressure difference < 5.0' +
+                      ' (penv: %f pressure: %f)', poci, pressure)
+            return True
+        elif age <= 12 and ((poci - pressure) < 2.0):
+            log.debug('Pressure difference < 2.0' +
+                      ' (penv: %f pressure: %f)', poci, pressure)
             return True
 
         return False
@@ -1474,8 +1623,7 @@ class TrackGenerator(object):
         outputFile = pjoin(self.processPath, 'coefficients.nc')
         nctools.ncSaveGrid(outputFile, dimensions, variables,
                            nodata=self.missingValue, datatitle=None,
-                           dtype='f', writedata=True,
-                           keepfileopen=False)
+                           writedata=True, keepfileopen=False)
 
 # Define a global pseudo-random number generator. This is done to
 # ensure we are sampling correctly across processors when performing
@@ -1498,13 +1646,18 @@ def uniform(a=0.0, b=1.0):
     Sample from a uniform distribution.
     """
     return PRNG.uniform(a, b)
-    
+
 def logistic(loc=0., scale=1.0):
     """
     Sample from a logistic distribution.
     """
     return PRNG.logisticvariate(loc, scale)
 
+def nct(df, nc, loc=0.0, scale=1.0):
+    """
+    Sample from a non-central T distribution.
+    """
+    return PRNG.nctvariate(df, nc, loc, scale)
 
 def ppf(q, cdf):
     """
@@ -1584,7 +1737,6 @@ def run(configFile, callback=None):
 
     outputPath = config.get('Output', 'Path')
     nSimulations = config.getint('TrackGenerator', 'NumSimulations')
-    yrsPerSim = config.getint('TrackGenerator', 'YearsPerSimulation')
     maxTimeSteps = config.getint('TrackGenerator', 'NumTimeSteps')
     dt = config.getfloat('TrackGenerator', 'TimeStep')
     fmt = config.get('TrackGenerator', 'Format')
@@ -1596,8 +1748,7 @@ def run(configFile, callback=None):
     trackSeed = None
     trackPath = pjoin(outputPath, 'tracks')
     processPath = pjoin(outputPath, 'process')
-    #trackFilename = 'tracks.%05i-%%04i.' + fmt
-    trackFilename = 'tracks.%05i.' + fmt
+    trackFilename = 'tracks.%05i-%%04i.' + fmt
 
     if config.has_option('TrackGenerator', 'gridLimit'):
         gridLimit = config.geteval('TrackGenerator', 'gridLimit')
@@ -1616,21 +1767,34 @@ def run(configFile, callback=None):
 
     if config.has_option('TrackGenerator', 'SeasonSeed'):
         seasonSeed = config.getint('TrackGenerator', 'SeasonSeed')
+    else:
+        log.info("Setting seasonSeed")
+        seasonSeed = int(time.time()/1314000) # Days since epoch
+        config.set('TrackGenerator', 'SeasonSeed', seasonSeed)
 
     if config.has_option('TrackGenerator', 'TrackSeed'):
         trackSeed = config.getint('TrackGenerator', 'TrackSeed')
+    else:
+        log.info("Setting trackSeed")
+        trackSeed = int(time.time())  # Seconds since epoch
+        config.set('TrackGenerator', 'TrackSeed', trackSeed)
+
+    if config.has_option('TrackGenerator', 'YearsPerSimulation'):
+        yrsPerSim = config.getint('TrackGenerator', 'YearsPerSimulation')
+    else:
+        yrsPerSim = 1
 
     # Attempt to start the track generator in parallel
     global pp
     pp = attemptParallel()
-    
+
     if pp.size() > 1 and (not seasonSeed or not trackSeed):
         log.critical('TrackSeed and GenesisSeed are needed' +
                      ' for parallel runs!')
         sys.exit(1)
 
     mslp = SamplePressure(mslpFile)
-    
+
     # Initialise the landfall tracking
 
     landfall = trackLandfall.LandfallDecay(configFile, dt)
@@ -1653,15 +1817,14 @@ def run(configFile, callback=None):
     # they will all get exactly the same simulation outcome. This also
     # behaves correctly when not done in parallel.
 
-    nCyclones = np.random.poisson(
-        np.floor(yrsPerSim) * meanFreq, nSimulations)
+    nCyclones = np.random.poisson(yrsPerSim * meanFreq, nSimulations)
 
     # Estimate the maximum number of random values to be drawn from the
     # PRNG for each track and calculate how much each track simulation
     # should jump ahead in the PRNG stream to ensure that it is
     # independent of all other simulations.
 
-    maxRvsPerTrack = 5 * (maxTimeSteps + 2)
+    maxRvsPerTrack = 8 * (maxTimeSteps + 2)
     jumpAhead = np.hstack([[0],
                           np.cumsum(nCyclones * maxRvsPerTrack)[:-1]])
 
@@ -1705,48 +1868,13 @@ def run(configFile, callback=None):
             log.debug('seed %i jumpahead %i', sim.seed, sim.jumpahead)
 
         trackFile = pjoin(trackPath, sim.outfile)
-        tracks = tg.generateTracks(sim.ntracks)
-
-        header = 'CycloneNumber,Datetime,TimeElapsed,Longitude,' + \
-                 'Latitude,Speed,Bearing,' + \
-                 'CentralPressure,EnvPressure,rMax\n'
-        fmt = '%i,%s,%7.3f,%8.3f,%8.3f,%6.2f,%6.2f,%7.2f,%7.2f,%6.2f'
-        
-        """
-        for i, track in enumerate(tracks):
-            trackFile = pjoin(trackPath, sim.outfile % (i + 1))
-            with open (trackFile, 'w') as fp:
-                fp.write('%' + header)
-                if len(track) > 0:
-                    np.savetxt(fp, np.array(track).T, fmt=fmt)
-        """            
-        with open(trackFile, 'w') as fp:
-            fp.write('%' + header)
-            if len(tracks) > 0:
-                np.savetxt(fp, tracks, fmt=fmt)
+        tracks = tg.generateTracks(sim.ntracks, sim.index)
+        ncTrackFile = pjoin(trackPath, "tracks.{0:05d}.nc".format(sim.index))
+        ncSaveTracks(ncTrackFile, tracks, calendar='julian')
 
     log.info('Simulating tropical cyclone tracks:' +
              ' 100 percent complete')
 
+    pp.barrier()
 
-if __name__ == "__main__":
-    try:
-        configFile = sys.argv[1]
-    except IndexError:
 
-        configFile = __file__.rstrip('.py') + '.ini'
-
-        if not os.path.exists(configFile):
-            errorMsg = 'No configuration file specified, please' + \
-                       ' type: python main.py {config filename}.ini'
-            raise IOError(errorMsg)
-
-    if not os.path.exists(configFile):
-        errorMsg = "Configuration file '" + configFile + "' not found"
-        raise IOError(errorMsg)
-
-    run(configFile)
-
-    # Finalise MPI
-
-    pp.finalize()
