@@ -48,17 +48,17 @@ np.random.seed(123456789)
 TRACKFILE_COLS = ('Indicator', 'CycloneNumber', 'Year', 'Month',
                   'Day', 'Hour', 'Minute', 'TimeElapsed', 'Longitude',
                   'Latitude', 'Speed', 'Bearing', 'CentralPressure',
-                  'WindSpeed', 'rMax', 'EnvPressure')
+                  'WindSpeed', 'rMax', 'EnvPressure','beta')
 
 TRACKFILE_FMTS = ('i', 'i', 'i', 'i',
                   'i', 'i', 'i', 'f',
                   'f', 'f', 'f', 'f', 'f',
-                  'f', 'f', 'f')
+                  'f', 'f', 'f','f')
 
 TRACKFILE_OUTFMT = ('%i,%i,%i,%i,'
                     '%i,%i,%i,%5.1f,'
                     '%8.3f,%8.3f,%6.2f,%6.2f,%7.2f,'
-                    '%6.2f,%6.2f,%7.2f')
+                    '%6.2f,%6.2f,%7.2f',%6.3f')
 
 class Track(object):
 
@@ -203,7 +203,7 @@ def getSpeedBearing(index, lon, lat, deltatime, ieast=1,
     return speed, bearing
 
 
-def maxWindSpeed(index, deltatime, lon, lat, pressure, penv,
+def maxWindSpeed(index, deltatime, lon, lat, pressure, penv, beta = None,
                  gustfactor=0.9524):
     """
     Calculate the 10-minute-mean maximum wind speed from the central
@@ -216,6 +216,7 @@ def maxWindSpeed(index, deltatime, lon, lat, pressure, penv,
     :param lon: Longitudes of TC postions.
     :param lat: Latitudes of TC positions.
     :param pressure: Central pressure estimate of TCs (hPa).
+    :param beta: Peakedness parameter for the radial profile (default=None)
     :param penv: Environmental pressure estimates for each TC postion (hPa).
     :param float gf: Gust factor - default value represents converting from a
                      1-minute sustained wind speed to a 10-minute mean wind
@@ -226,6 +227,7 @@ def maxWindSpeed(index, deltatime, lon, lat, pressure, penv,
     :type lat: :class:`numpy.ndarray`
     :type pressure: :class:`numpy.ndarray`
     :type penv: :class:`numpy.ndarray`
+    :type beta: :class:`numpy.ndarray`
 
     :returns: :class:`numpy.ndarray` of estimated wind speed based on
               central pressure deficit.
@@ -263,9 +265,10 @@ def maxWindSpeed(index, deltatime, lon, lat, pressure, penv,
     rho = prmw * 100. / (tvs * 287.04)
 
     chi = 0.6 * (1.0 - deltap / 215.)
-    beta = -0.000044 * np.power(deltap, 2.) + \
-        0.01 * deltap + 0.03 * dpdt - 0.014 * np.abs(lat) + \
-        0.15 * np.power(speed, chi) + 1.
+    if not beta.any:
+        beta = -0.000044 * np.power(deltap, 2.) + \
+                0.01 * deltap + 0.03 * dpdt - 0.014 * np.abs(lat) + \
+                0.15 * np.power(speed, chi) + 1.
 
     # Holland's P-W relation derives a 1-minute mean wind speed, so we often
     # need to convert to some other averaging period. I use the recommendations
@@ -909,13 +912,19 @@ def loadTrackFile(configFile, trackFile, source, missingValue=0,
         LOG.debug("Determining poci")
         eps = np.random.normal(0, scale=2.5717)
         poci = getPoci(penv, pressure, lat, jdays, eps)
-
+    if 'beta' in inputData.dtype.names:
+        beta = np.array(inputData['beta'], 'd')
+        LOG.debug("beta found in the input file")
+    else:
+        beta_vals = config.get('WindfieldInterface','beta')
+        beta = np.ones(len(indicator)) * float(beta_vals)
+        LOG.debug("no beta found in the input file")
 
     speed, bearing = getSpeedBearing(indicator, lon, lat, dt,
                                      missingValue=missingValue)
 
     if calculateWindSpeed:
-        windspeed = maxWindSpeed(indicator, dt, lon, lat, pressure, poci)
+        windspeed = maxWindSpeed(indicator, dt, lon, lat, pressure, poci, beta)
 
     TCID = np.cumsum(indicator)
 
@@ -928,7 +937,7 @@ def loadTrackFile(configFile, trackFile, source, missingValue=0,
                           [indicator, TCID, year, month,
                            day, hour, minute, timeElapsed,
                            datetimes, lon, lat, speed, bearing,
-                           pressure, windspeed, rmax, poci]):
+                           pressure, windspeed, rmax, poci, beta]):
         data[key] = value
 
     tracks = []
