@@ -180,6 +180,7 @@ class WindfieldAroundTrack(object):
         vFm = convert(self.track.Speed[i], 'kph', 'mps')
         thetaFm = bearing2theta(self.track.Bearing[i] * np.pi/180.)
         thetaMax = self.thetaMax
+        beta = self.track.beta[i]
 
         #FIXME: temporary way to do this
         cls = windmodels.profile(self.profileType)
