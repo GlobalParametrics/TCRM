@@ -315,9 +315,9 @@ def readTrackData(trackfile):
 
     The track format and converters are specified with the global variables
 
-        TRACKFILE_COLS -- The column names
-        TRACKFILE_FMTS -- The entry formats
-        TRACKFILE_CNVT -- The column converters
+        TCRM_COLS -- The column names
+        TCRM_FMTS -- The entry formats
+        TCRM_CNVT -- The column converters
 
     :param str trackfile: the track data filename.
 
