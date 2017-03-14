@@ -148,7 +148,7 @@ class WindProfileModel(object):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax, windSpeedModel):
+    def __init__(self, lat, lon, eP, cP, rMax, beta, windSpeedModel):
         self.rho = 1.15  # density of air
         self.lat = lat
         self.lon = lon
@@ -229,10 +229,10 @@ class JelesnianskiWindProfile(WindProfileModel):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax,
+    def __init__(self, lat, lon, eP, cP, rMax, beta,
                  windSpeedModel=WilloughbyWindSpeed):
         rMax = rMax
-        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax,
+        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax, beta,
                                   windSpeedModel)
 
     def velocity(self, R):
@@ -295,7 +295,7 @@ class HollandWindProfile(WindProfileModel):
     def __init__(self, lat, lon, eP, cP, rMax, beta,
                  windSpeedModel=HollandWindSpeed):
         WindProfileModel.__init__(self, lat, lon, eP, cP, rMax,
-                                  windSpeedModel)
+                                  beta, windSpeedModel)
         self.beta = beta
 
     def secondDerivative(self):
@@ -432,7 +432,7 @@ class WilloughbyWindProfile(HollandWindProfile):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax,
+    def __init__(self, lat, lon, eP, cP, rMax, beta,
                  windSpeedModel=WilloughbyWindSpeed):
         HollandWindProfile.__init__(self, lat, lon, eP, cP, rMax, 1.0,
                                     windSpeedModel)
@@ -457,9 +457,9 @@ class RankineWindProfile(WindProfileModel):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax,
+    def __init__(self, lat, lon, eP, cP, rMax, beta,
                  windSpeedModel=WilloughbyWindSpeed):
-        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax,
+        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax, beta,
                                   windSpeedModel)
         self.alpha = 0.5
 
@@ -525,7 +525,7 @@ class SchloemerWindProfile(HollandWindProfile):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax):
+    def __init__(self, lat, lon, eP, cP, rMax, beta):
         HollandWindProfile.__init__(self, lat, lon, eP, cP, rMax, 1.0)
 
 
@@ -553,9 +553,9 @@ class DoubleHollandWindProfile(WindProfileModel):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax, beta1, beta2, rMax2=150.,
+    def __init__(self, lat, lon, eP, cP, rMax, beta, beta1, beta2, rMax2=150.,
                  windSpeedModel=HollandWindSpeed):
-        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax,
+        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax, beta,
                                   windSpeedModel)
 
         # Scale dp2 if dP is less than 800 Pa
@@ -767,7 +767,7 @@ class PowellWindProfile(HollandWindProfile):
 
     """
 
-    def __init__(self, lat, lon, eP, cP, rMax):
+    def __init__(self, lat, lon, eP, cP, rMax, beta):
         beta = 1.881093 - 0.010917 * np.abs(lat) - 0.005567 * rMax/1000
         if beta < 0.8:
             beta = 0.8
@@ -1068,7 +1068,7 @@ class KepertWindField(WindFieldModel):
         
         # Symmetric surface wind component
         u0s = np.sign(self.f) * albe * A0.real
-        v0s =                          A0.imag
+        v0s = A0.imag
 
         Am = -(psi * (1 + 2 * albe + (1 + i) * (1 + albe) * eta) * Umod) / \
              (albe * ((2 + 2 * i) * (1 + eta * psi) + 3 * psi + 3* i * eta))
@@ -1087,11 +1087,11 @@ class KepertWindField(WindFieldModel):
         Ap[ind] = ApIII[ind]
 
         # Second asymmetric surface component
-        ups =            albe * (Ap * np.exp(i * lam * np.sign(self.f))).real
+        ups = albe * (Ap * np.exp(i * lam * np.sign(self.f))).real
         vps = np.sign(self.f) * (Ap * np.exp(i * lam * np.sign(self.f))).imag
 
         # Total surface wind in (moving coordinate system)
-        us =     u0s + ups + ums
+        us = u0s + ups + ums
         vs = V + v0s + vps + vms
 
         usf = us + Umod * np.cos(lam - thetaFm)
