@@ -155,7 +155,7 @@ class WindfieldAroundTrack(object):
                             self.track.rMax[i],
                             self.track.Latitude[i],
                             self.track.Longitude[i],
-                            self.beta, beta1=self.beta1,
+                            self.track.beta[i], beta1=self.beta1,
                             beta2=self.beta2)
         try:
             pressure = getattr(p, self.profileType)
@@ -186,7 +186,7 @@ class WindfieldAroundTrack(object):
         cls = windmodels.profile(self.profileType)
         params = windmodels.profileParams(self.profileType)
         values = [getattr(self, p) for p in params if hasattr(self, p)]
-        profile = cls(lat, lon, eP, cP, rMax, *values)
+        profile = cls(lat, lon, eP, cP, rMax, beta, *values)
 
         R, theta = self.polarGridAroundEye(i)
 
