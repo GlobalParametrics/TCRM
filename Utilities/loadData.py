@@ -44,22 +44,6 @@ LOG.addHandler(logging.NullHandler())
 
 np.random.seed(123456789)
 """
-
-TRACKFILE_COLS = ('Indicator', 'CycloneNumber', 'Year', 'Month',
-                  'Day', 'Hour', 'Minute', 'TimeElapsed', 'Longitude',
-                  'Latitude', 'Speed', 'Bearing', 'CentralPressure',
-                  'WindSpeed', 'rMax', 'EnvPressure','beta')
-
-TRACKFILE_FMTS = ('i', 'i', 'i', 'i',
-                  'i', 'i', 'i', 'f',
-                  'f', 'f', 'f', 'f', 'f',
-                  'f', 'f', 'f','f')
-
-TRACKFILE_OUTFMT = ('%i,%i,%i,%i,'
-                    '%i,%i,%i,%5.1f,'
-                    '%8.3f,%8.3f,%6.2f,%6.2f,%7.2f,'
-                    '%6.2f,%6.2f,%7.2f',%6.3f')
-
 class Track(object):
 
     ""
@@ -916,8 +900,8 @@ def loadTrackFile(configFile, trackFile, source, missingValue=0,
         beta = np.array(inputData['beta'], 'd')
         LOG.debug("beta found in the input file")
     else:
-        beta_vals = config.get('WindfieldInterface','beta')
-        beta = np.ones(len(indicator)) * float(beta_vals)
+        beta_vals = config.getfloat('WindfieldInterface','beta')
+        beta = np.ones(len(indicator)) * beta_vals
         LOG.debug("no beta found in the input file")
 
     speed, bearing = getSpeedBearing(indicator, lon, lat, dt,
