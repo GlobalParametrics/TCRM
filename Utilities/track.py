@@ -44,13 +44,13 @@ trackFields = ('Indicator', 'CycloneNumber', 'Year', 'Month',
                'WindSpeed', 'rMax', 'EnvPressure', 'beta')
 
 trackTypes = ('i', 'i', 'i', 'i',
-              'i', 'i', 'i', 'f', datetime,
-              'f', 'f', 'f', 'f', 'f',
+              'i', 'i', 'i', 'f', datetime, 'f',
+              'f', 'f', 'f', 'f',
               'f', 'f', 'f', 'f')
 
 trackFormats = ('%i, %i, %i, %i,'
-                '%i, %i, %i, %5.1f,' '%s',
-                '%8.3f, %8.3f, %6.2f, %6.2f, %7.2f,'
+                '%i, %i, %i, %5.1f, %s, %8.3f,'
+                '%8.3f, %6.2f, %6.2f, %7.2f,'
                 '%6.2f, %6.2f, %7.2f, %7.2f')
 
 PATTERN = re.compile(r'\d+')
