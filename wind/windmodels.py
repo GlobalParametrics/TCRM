@@ -143,6 +143,7 @@ class WindProfileModel(object):
     :param float eP: environmental pressure (hPa).
     :param float cP: centrral pressure of the TC (hPa).
     :param float rMax: Radius to maximum wind (km).
+    :param float beta: Peakedness parameter.
     :param windSpeedModel: A maximum wind speed model to apply.
     :type  windSpeedModel: :class:`windmodels.WindSpeedModel` instance.
 
