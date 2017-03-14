@@ -41,12 +41,17 @@ log.addHandler(logging.NullHandler())
 trackFields = ('Indicator', 'CycloneNumber', 'Year', 'Month',
                'Day', 'Hour', 'Minute', 'TimeElapsed', 'Datetime', 'Longitude',
                'Latitude', 'Speed', 'Bearing', 'CentralPressure',
-               'WindSpeed', 'rMax', 'EnvPressure','beta')
+               'WindSpeed', 'rMax', 'EnvPressure', 'beta')
 
 trackTypes = ('i', 'i', 'i', 'i',
               'i', 'i', 'i', 'f', datetime,
               'f', 'f', 'f', 'f', 'f',
-              'f', 'f', 'f','f')
+              'f', 'f', 'f', 'f')
+
+trackFormats = ('%i, %i, %i, %i,'
+                '%i, %i, %i, %5.1f,' '%s',
+                '%8.3f, %8.3f, %6.2f, %6.2f, %7.2f,'
+                '%6.2f, %6.2f, %7.2f, %7.2f')
 
 PATTERN = re.compile(r'\d+')
 
@@ -278,10 +283,10 @@ def ncSaveTracks(trackfile, tracks,
         tdtype = tdata.createCompoundType(track_dtype, 'track_dtype')
 
         dims = tdata.createDimension('time', None)
-        times = tdata.createVariable('time', 'f8', ('time',),
-                                     zlib=True, complevel=8, shuffle=True)
-        tvar = tdata.createVariable('track', tdtype, ('time',),
-                                    zlib=True, complevel=8, shuffle=True)
+        times = tdata.createVariable('time', 'f8', ('time',),)
+                                     #zlib=True, complevel=8, shuffle=True)
+        tvar = tdata.createVariable('track', tdtype, ('time',),)
+                                    #zlib=True, complevel=8, shuffle=True)
         t.data['Datetime'] = date2num(t.data['Datetime'], timeunits, calendar)
         times[:] = t.data['Datetime']
         times.units = 'hours since 1900-01-01 00:00'
