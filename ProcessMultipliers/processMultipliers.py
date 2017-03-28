@@ -44,8 +44,6 @@ from os.path import join as pjoin, dirname, realpath, isdir, splitext
 from osgeo import osr, gdal, gdalconst
 from functools import reduce
 
-import pdb
-
 gdal.UseExceptions()
 
 syn_indices = {
@@ -583,7 +581,6 @@ def main(config_file):
                        (bear_data < indices[i]['max']))
         local[idx] = wind_data[idx] * m4[idx]
 
-    pdb.set_trace()
     rows, cols = local.shape
     output_file = pjoin(windfield_path, 'local_wind.tif')
     log.info("Creating output file: {0}".format(output_file))
