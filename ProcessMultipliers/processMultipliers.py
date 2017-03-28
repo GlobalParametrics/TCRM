@@ -42,9 +42,9 @@ import numpy as np
 from os.path import join as pjoin, dirname, realpath, isdir, splitext
 
 from osgeo import osr, gdal, gdalconst
-#from osgeo.gdalconst import *
 from functools import reduce
 
+import pdb
 
 gdal.UseExceptions()
 
@@ -101,7 +101,7 @@ def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, shape,
         else:
             fill = every_fill
         multiplier_values.fill(fill)
-        img_name = 'm4_' + value['dir'] + '.img'
+        img_name = 'm4_' + value['dir'] + '.tif'
         file_path = pjoin(dir_path, img_name)
         createRaster(multiplier_values, tl_x, tl_y,
                      delta, -delta,
@@ -150,7 +150,7 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     tempRaster.SetGeoTransform((originX, dx, 0,
                                 originY, 0, dy))
     tempBand = tempRaster.GetRasterBand(1)
-    tempBand.WriteArray(array[::np.sign(dy) * 1])
+    tempBand.WriteArray(array[::int(np.sign(dy) * 1)])
     tempBand.SetNoDataValue(nodata)
     tempRasterSRS = osr.SpatialReference()
     tempRasterSRS.ImportFromEPSG(epsg)
@@ -306,7 +306,7 @@ def reprojectDataset(src_file, match_filename, dst_filename,
 
 @timer
 def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
-                m4_max_file='m4_max.img'):
+                m4_max_file='m4_ne.tif'):
     """
 
     The lat and lon values are the top left corners of the cells
@@ -388,7 +388,7 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     for i in indices.keys():
         dn = indices[i]['dir']
         log.info("Processing {0}".format(dn))
-        m4_file = pjoin(multiplier_path, 'm4_{0}.img'.format(dn.lower()))
+        m4_file = pjoin(multiplier_path, 'm4_{0}.tif'.format(dn.lower()))
         m4 = loadRasterFile(m4_file)
         idx = np.where((bear_data >= indices[i]['min']) &
                        (bear_data < indices[i]['max']))
@@ -401,10 +401,11 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     # multipliers
     drv = gdal.GetDriverByName("GTiff")
     dst_ds = drv.Create(output_file, cols, rows, 1,
-                        gdal.GDT_Float32, ['BIGTIFF=YES'])
+                        gdal.GDT_Float32, ['BIGTIFF=NO', 'SPARSE_OK=TRUE'])
     dst_ds.SetGeoTransform(wind_geot)
     dst_ds.SetProjection(wind_proj)
     dst_band = dst_ds.GetRasterBand(1)
+    dst_band.SetNoDataValue(-9999)
     dst_band.WriteArray(local)
 
     # dst_band.FlushCache()
@@ -430,7 +431,7 @@ def modified_main(config_file):
     try:
         gust_file = config.get('Input', 'Gust_file')
     except:
-        gust_file = 'gust.interp.nc'
+        gust_file = 'tc.nc'
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
@@ -490,7 +491,7 @@ def main(config_file):
     try:
         gust_file = config.get('Input', 'Gust_file')
     except:
-        gust_file = 'gust.interp.nc'
+        gust_file = 'tc.nc'
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
@@ -516,7 +517,7 @@ def main(config_file):
     bearing = calculateBearing(uu, vv)
 
     # Load a multiplier file to determine the projection:
-    m4_max_file = pjoin(multiplier_path, 'm4_max.img')
+    m4_max_file = pjoin(multiplier_path, 'm4_ne.tif')
     log.info("Using M4 data from {0}".format(m4_max_file))
 
     # Reproject the wind speed and bearing data:
@@ -576,13 +577,13 @@ def main(config_file):
     for i in indices.keys():
         dn = indices[i]['dir']
         log.info("Processing {0}".format(dn))
-        m4_file = pjoin(multiplier_path, 'm4_{0}.img'.format(dn.lower()))
+        m4_file = pjoin(multiplier_path, 'm4_{0}.tif'.format(dn.lower()))
         m4 = loadRasterFile(m4_file)
         idx = np.where((bear_data >= indices[i]['min']) &
                        (bear_data < indices[i]['max']))
-
         local[idx] = wind_data[idx] * m4[idx]
 
+    pdb.set_trace()
     rows, cols = local.shape
     output_file = pjoin(windfield_path, 'local_wind.tif')
     log.info("Creating output file: {0}".format(output_file))
@@ -590,10 +591,11 @@ def main(config_file):
     # multipliers
     drv = gdal.GetDriverByName("GTiff")
     dst_ds = drv.Create(output_file, cols, rows, 1,
-                        gdal.GDT_Float32, ['BIGTIFF=YES'])
+                        gdal.GDT_Float32, ['BIGTIFF=NO', 'SPARSE_OK=TRUE'])
     dst_ds.SetGeoTransform(wind_geot)
     dst_ds.SetProjection(wind_proj)
     dst_band = dst_ds.GetRasterBand(1)
+    dst_band.SetNoDataValue(-9999)
     dst_band.WriteArray(local)
 
     # dst_band.FlushCache()
