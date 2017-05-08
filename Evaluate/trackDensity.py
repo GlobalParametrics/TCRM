@@ -18,7 +18,6 @@ import numpy.ma as ma
 from os.path import join as pjoin
 from scipy.stats import scoreatpercentile as percentile
 
-from Utilities.loadData import loadTrackFile
 from Utilities.config import ConfigParser
 from Utilities.track import ncReadTrackData
 from Utilities.nctools import ncSaveGrid
@@ -106,7 +105,7 @@ class TrackDensity(object):
         histogram, x, y = np.histogram2d(lon, lat,
                                          [self.lon_range,
                                           self.lat_range],
-                                          normed=False)
+                                         normed=False)
         return histogram
 
     def calculateMeans(self):
@@ -177,7 +176,7 @@ class TrackDensity(object):
                 w += 1
 
             terminated = 0
-            while (terminated < pp.size() - 1):
+            while terminated < pp.size() - 1:
                 results, status = pp.receive(pp.any_source, tag=result_tag,
                                              return_status=True)
                 self.synHist[n, :, :] = results
@@ -196,7 +195,7 @@ class TrackDensity(object):
             self.calculateMeans()
 
         elif (pp.size() > 1) and (pp.rank() != 0):
-            while(True):
+            while True:
                 trackfile = pp.receive(source=0, tag=work_tag)
                 if trackfile is None:
                     break
@@ -312,7 +311,7 @@ class TrackDensity(object):
         figure.add(self.hist.T, self.X, self.Y, "Historic", datarange,
                    cbarlab, self.map_kwargs)
         figure.add(self.synHistMean.T, self.X, self.Y, "Synthetic",
-                    datarange, cbarlab, self.map_kwargs)
+                   datarange, cbarlab, self.map_kwargs)
         figure.plot()
         outputFile = pjoin(self.plotPath, 'track_density.png')
         saveFigure(figure, outputFile)
@@ -351,7 +350,7 @@ class TrackDensity(object):
         figure.add(self.synHistUpper.T, self.X, self.Y, "Upper percentile",
                    datarange, cbarlab, self.map_kwargs)
         figure.add(self.synHistLower.T, self.X, self.Y, "Lower percentile",
-                    datarange, cbarlab, self.map_kwargs)
+                   datarange, cbarlab, self.map_kwargs)
         figure.plot()
         outputFile = pjoin(self.plotPath, 'track_density_percentiles.png')
         saveFigure(figure, outputFile)
