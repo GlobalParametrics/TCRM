@@ -429,7 +429,7 @@ def modified_main(config_file):
     try:
         gust_file = config.get('Input', 'Gust_file')
     except:
-        gust_file = 'tc.nc'
+        gust_file = 'gust.001-00001.nc'
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
@@ -489,7 +489,7 @@ def main(config_file):
     try:
         gust_file = config.get('Input', 'Gust_file')
     except:
-        gust_file = 'tc.nc'
+        gust_file = 'gust.001-00001.nc'
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
