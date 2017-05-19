@@ -794,7 +794,7 @@ class DataProcess(object):
                        header, fmt='%6.2f')
 
             self.logger.info("Mean annual frequency: ", np.mean(n))
-            self.logger.info("Standard deviation: ", % np.std(n))
+            self.logger.info("Standard deviation: ", np.std(n))
 
     def _juliandays(self, jdays, indicator, years):
         """
