@@ -26,7 +26,6 @@ be found in the ``PYTHONPATH`` directory.
 """
 
 import os
-import sys
 import time
 import logging as log
 import argparse
@@ -40,12 +39,10 @@ from Utilities import pathLocator
 from netCDF4 import Dataset
 
 import numpy as np
-from os.path import join as pjoin, dirname, realpath, isdir, abspath, splitext
+from os.path import join as pjoin, dirname, realpath, isdir, splitext
 
-from osgeo import osr, gdal
-from osgeo.gdalconst import *
+from osgeo import osr, gdal, gdalconst
 from functools import reduce
-
 
 gdal.UseExceptions()
 
@@ -96,17 +93,17 @@ def generate_syn_mult_img(tl_x, tl_y, delta, dir_path, shape,
 
     multiplier_values = np.zeros(shape)
 
-    for key, value in indices.iteritems():
+    for value in indices.iteritems():
         if every_fill is None:
             fill = value['fill']
         else:
             fill = every_fill
         multiplier_values.fill(fill)
-        img_name = 'm4_' + value['dir'] + '.img'
+        img_name = 'm4_' + value['dir'] + '.tif'
         file_path = pjoin(dir_path, img_name)
         createRaster(multiplier_values, tl_x, tl_y,
-                                 delta, -delta,
-                                 filename=file_path)
+                     delta, -delta,
+                     filename=file_path)
 
 def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     """
@@ -138,20 +135,20 @@ def createRaster(array, x, y, dx, dy, epsg=4326, filename=None, nodata=-9999):
     originX, originY = x[0], y[-1]
     if filename:
         _, ext = splitext(filename)
-    if filename and ext=='.tif':
+    if filename and ext == '.tif':
         driver = gdal.GetDriverByName('GTiff')
-        tempRaster = driver.Create(filename, cols, rows, 1, GDT_Float32)
-    elif filename and ext=='.img':
+        tempRaster = driver.Create(filename, cols, rows, 1, gdal.GDT_Float32)
+    elif filename and ext == '.img':
         driver = gdal.GetDriverByName('HFA')
-        tempRaster = driver.Create(filename, cols, rows, 1, GDT_Float32)
+        tempRaster = driver.Create(filename, cols, rows, 1, gdal.GDT_Float32)
     else:
         driver = gdal.GetDriverByName('MEM')
-        tempRaster = driver.Create('', cols, rows, 1, GDT_Float32)
+        tempRaster = driver.Create('', cols, rows, 1, gdal.GDT_Float32)
 
     tempRaster.SetGeoTransform((originX, dx, 0,
                                 originY, 0, dy))
     tempBand = tempRaster.GetRasterBand(1)
-    tempBand.WriteArray(array[::np.sign(dy) * 1])
+    tempBand.WriteArray(array[::int(np.sign(dy) * 1)])
     tempBand.SetNoDataValue(nodata)
     tempRasterSRS = osr.SpatialReference()
     tempRasterSRS.ImportFromEPSG(epsg)
@@ -177,7 +174,7 @@ def loadRasterFile(raster_file, fill_value=1):
     """
 
     log.debug("Loading raster data from {0} into array".format(raster_file))
-    ds = gdal.Open(raster_file, GA_ReadOnly)
+    ds = gdal.Open(raster_file, gdal.GA_ReadOnly)
     band = ds.GetRasterBand(1)
     data = band.ReadAsArray()
 
@@ -204,7 +201,7 @@ def loadRasterFileBandLonLat(raster_file, fill_value=1):
     """
 
     log.debug("Loading raster data from {0} into array".format(raster_file))
-    ds = gdal.Open(raster_file, GA_ReadOnly)
+    ds = gdal.Open(raster_file, gdal.GA_ReadOnly)
     band = ds.GetRasterBand(1)
     data = band.ReadAsArray()
     nodata = band.GetNoDataValue()
@@ -247,7 +244,7 @@ def calculateBearing(uu, vv):
 
 @timer
 def reprojectDataset(src_file, match_filename, dst_filename,
-                     resampling_method=GRA_Bilinear, match_projection=None):
+                     resampling_method=gdalconst.GRA_Bilinear, match_projection=None):
     """
     Reproject a source dataset to match the projection of another
     dataset and save the projected dataset to a new file.
@@ -267,15 +264,14 @@ def reprojectDataset(src_file, match_filename, dst_filename,
     log.debug("Output raster: {0}".format(dst_filename))
 
     if isinstance(src_file, str):
-        src = gdal.Open(src_file, GA_ReadOnly)
+        src = gdal.Open(src_file, gdal.GA_ReadOnly)
     else:
         src = src_file
     src_proj = src.GetProjection()
-    src_geotrans = src.GetGeoTransform()
 
     # We want a section of source that matches this:
     if isinstance(match_filename, str):
-        match_ds = gdal.Open(match_filename, GA_ReadOnly)
+        match_ds = gdal.Open(match_filename, gdal.GA_ReadOnly)
     else:
         match_ds = match_filename
 
@@ -291,7 +287,7 @@ def reprojectDataset(src_file, match_filename, dst_filename,
 
     # Output / destination
     drv = gdal.GetDriverByName('GTiff')
-    dst = drv.Create(dst_filename, wide, high, 1, GDT_Float32)
+    dst = drv.Create(dst_filename, wide, high, 1, gdal.GDT_Float32)
     dst.SetGeoTransform(match_geotrans)
     dst.SetProjection(match_proj)
 
@@ -308,7 +304,7 @@ def reprojectDataset(src_file, match_filename, dst_filename,
 
 @timer
 def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
-                m4_max_file='m4_max.img'):
+                m4_max_file='m4_ne.tif'):
     """
 
     The lat and lon values are the top left corners of the cells
@@ -355,13 +351,13 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     reprojectDataset(vv_raster, m4_max_file, vv_prj_file,
                               resampling_method=GRA_NearestNeighbour)
 
-    wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
+    wind_prj_ds = gdal.Open(wind_prj_file, gdal.GA_ReadOnly)
     wind_prj = wind_prj_ds.GetRasterBand(1)
-    bear_prj_ds = gdal.Open(bear_prj_file, GA_ReadOnly)
+    bear_prj_ds = gdal.Open(bear_prj_file, gdal.GA_ReadOnly)
     bear_prj = bear_prj_ds.GetRasterBand(1)
-    uu_prj_ds = gdal.Open(uu_prj_file, GA_ReadOnly)
+    uu_prj_ds = gdal.Open(uu_prj_file, gdal.GA_ReadOnly)
     uu_prj = uu_prj_ds.GetRasterBand(1)
-    vv_prj_ds = gdal.Open(vv_prj_file, GA_ReadOnly)
+    vv_prj_ds = gdal.Open(vv_prj_file, gdal.GA_ReadOnly)
     vv_prj = vv_prj_ds.GetRasterBand(1)
     wind_proj = wind_prj_ds.GetProjection()
     wind_geot = wind_prj_ds.GetGeoTransform()
@@ -390,7 +386,7 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     for i in indices.keys():
         dn = indices[i]['dir']
         log.info("Processing {0}".format(dn))
-        m4_file = pjoin(multiplier_path, 'm4_{0}.img'.format(dn.lower()))
+        m4_file = pjoin(multiplier_path, 'm4_{0}.tif'.format(dn.lower()))
         m4 = loadRasterFile(m4_file)
         idx = np.where((bear_data >= indices[i]['min']) &
                        (bear_data < indices[i]['max']))
@@ -403,10 +399,11 @@ def processMult(wspd, uu, vv, lon, lat, windfield_path, multiplier_path,
     # multipliers
     drv = gdal.GetDriverByName("GTiff")
     dst_ds = drv.Create(output_file, cols, rows, 1,
-                        GDT_Float32, ['BIGTIFF=YES'])
+                        gdal.GDT_Float32, ['BIGTIFF=NO', 'SPARSE_OK=TRUE'])
     dst_ds.SetGeoTransform(wind_geot)
     dst_ds.SetProjection(wind_proj)
     dst_band = dst_ds.GetRasterBand(1)
+    dst_band.SetNoDataValue(-9999)
     dst_band.WriteArray(local)
 
     # dst_band.FlushCache()
@@ -432,7 +429,7 @@ def modified_main(config_file):
     try:
         gust_file = config.get('Input', 'Gust_file')
     except:
-        gust_file = 'gust.interp.nc'
+        gust_file = 'gust.001-00001.nc'
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
@@ -492,7 +489,7 @@ def main(config_file):
     try:
         gust_file = config.get('Input', 'Gust_file')
     except:
-        gust_file = 'gust.interp.nc'
+        gust_file = 'gust.001-00001.nc'
     windfield_path = pjoin(input_path, 'windfield')
     ncfile = pjoin(windfield_path, gust_file)
     multiplier_path = config.get('Input', 'Multipliers')
@@ -518,7 +515,7 @@ def main(config_file):
     bearing = calculateBearing(uu, vv)
 
     # Load a multiplier file to determine the projection:
-    m4_max_file = pjoin(multiplier_path, 'm4_max.img')
+    m4_max_file = pjoin(multiplier_path, 'm4_ne.tif')
     log.info("Using M4 data from {0}".format(m4_max_file))
 
     # Reproject the wind speed and bearing data:
@@ -543,13 +540,13 @@ def main(config_file):
     reprojectDataset(vv_raster, m4_max_file, vv_prj_file,
                               resampling_method=GRA_NearestNeighbour)
 
-    wind_prj_ds = gdal.Open(wind_prj_file, GA_ReadOnly)
+    wind_prj_ds = gdal.Open(wind_prj_file, gdal.GA_ReadOnly)
     wind_prj = wind_prj_ds.GetRasterBand(1)
-    bear_prj_ds = gdal.Open(bear_prj_file, GA_ReadOnly)
+    bear_prj_ds = gdal.Open(bear_prj_file, gdal.GA_ReadOnly)
     bear_prj = bear_prj_ds.GetRasterBand(1)
-    uu_prj_ds = gdal.Open(uu_prj_file, GA_ReadOnly)
+    uu_prj_ds = gdal.Open(uu_prj_file, gdal.GA_ReadOnly)
     uu_prj = uu_prj_ds.GetRasterBand(1)
-    vv_prj_ds = gdal.Open(vv_prj_file, GA_ReadOnly)
+    vv_prj_ds = gdal.Open(vv_prj_file, gdal.GA_ReadOnly)
     vv_prj = vv_prj_ds.GetRasterBand(1)
     wind_proj = wind_prj_ds.GetProjection()
     wind_geot = wind_prj_ds.GetGeoTransform()
@@ -578,11 +575,10 @@ def main(config_file):
     for i in indices.keys():
         dn = indices[i]['dir']
         log.info("Processing {0}".format(dn))
-        m4_file = pjoin(multiplier_path, 'm4_{0}.img'.format(dn.lower()))
+        m4_file = pjoin(multiplier_path, 'm4_{0}.tif'.format(dn.lower()))
         m4 = loadRasterFile(m4_file)
         idx = np.where((bear_data >= indices[i]['min']) &
                        (bear_data < indices[i]['max']))
-
         local[idx] = wind_data[idx] * m4[idx]
 
     rows, cols = local.shape
@@ -592,10 +588,11 @@ def main(config_file):
     # multipliers
     drv = gdal.GetDriverByName("GTiff")
     dst_ds = drv.Create(output_file, cols, rows, 1,
-                        GDT_Float32, ['BIGTIFF=YES'])
+                        gdal.GDT_Float32, ['BIGTIFF=NO', 'SPARSE_OK=TRUE'])
     dst_ds.SetGeoTransform(wind_geot)
     dst_ds.SetProjection(wind_proj)
     dst_band = dst_ds.GetRasterBand(1)
+    dst_band.SetNoDataValue(-9999)
     dst_band.WriteArray(local)
 
     # dst_band.FlushCache()

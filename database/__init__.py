@@ -48,13 +48,11 @@ from netCDF4 import Dataset
 import numpy as np
 
 from Utilities.config import ConfigParser
-from Utilities.files import flGetStat
 from Utilities.maputils import find_index
-from Utilities.track import loadTracksFromFiles, loadTracks
+from Utilities.track import loadTracksFromFiles
 from Utilities.singleton import Singleton
 from Utilities.parallel import attemptParallel, disableOnWorkers
-from Utilities.process import pAlreadyProcessed, pWriteProcessedFile, \
-    pGetProcessedFiles
+from Utilities.process import pAlreadyProcessed, pGetProcessedFiles
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
@@ -441,8 +439,8 @@ class _HazardDatabase(sqlite3.Connection, Singleton):
             # Assume no Pypar:
             locations = self.getLocations()
             for eventNum, filename in enumerate(fileList):
-                log.debug("Processing {0} ({1} of {2})".format(filename, 
-                                                               eventNum, 
+                log.debug("Processing {0} ({1} of {2})".format(filename,
+                                                               eventNum,
                                                                len(fileList)))
                 result = self.processEvent(filename, locations, eventNum)
                 eventparams, wsparams = result
@@ -660,7 +658,6 @@ class _HazardDatabase(sqlite3.Connection, Singleton):
         :param track: :class:`Track` instance.
         :param locations: list of locations in the simulation domain.
         """
-        
         points = [Point(loc[2], loc[3]) for loc in locations]
         records = []
         if len(track.data) == 0:

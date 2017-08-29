@@ -47,6 +47,7 @@ from Utilities.maputils import bearing2theta
 import Utilities.Intersections as Int
 import Utilities.colours as colours
 
+from Utilities.track import trackFields, trackTypes
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -79,15 +80,6 @@ LogLevel=INFO
 Verbose=False
 Datestamp=True
 """ % {'cwd': os.getcwd()}
-
-TRACKFILE_COLS = ('CycloneNumber', 'TimeElapsed', 'Longitude',
-                  'Latitude', 'Speed', 'Bearing', 'CentralPressure',
-                  'EnvPressure', 'rMax')
-
-TRACKFILE_UNIT = ('', 'hr', 'degree', 'degree', 'kph', 'degrees',
-                  'hPa', 'hPa', 'km')
-
-TRACKFILE_FMTS = ('i', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f')
 
 TRACKFILE_CNVT = {
     0: lambda s: int(float(s.strip() or 0)),
@@ -281,8 +273,8 @@ def readTrackData(trackfile):
 
     The track format and converters are specified with the global variables
 
-        TRACKFILE_COLS -- The column names
-        TRACKFILE_FMTS -- The entry formats
+        trackFields -- The column names
+        trackTypes -- The entry formats
         TRACKFILE_CNVT -- The column converters
 
     :type  trackfile: str
@@ -292,13 +284,13 @@ def readTrackData(trackfile):
         return np.loadtxt(trackfile,
                           comments='%',
                           delimiter=',',
-                          dtype={'names': TRACKFILE_COLS,
-                                 'formats': TRACKFILE_FMTS},
+                          dtype={'names': trackFields,
+                                 'formats': trackTypes},
                           converters=TRACKFILE_CNVT)
     except ValueError:
         # return an empty array with the appropriate `dtype` field names
-        return np.empty(0, dtype={'names': TRACKFILE_COLS,
-                                  'formats': TRACKFILE_FMTS})
+        return np.empty(0, dtype={'names': trackFields,
+                                  'formats': trackTypes})
 
 
 def readMultipleTrackData(trackfile):

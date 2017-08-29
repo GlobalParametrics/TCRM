@@ -14,7 +14,6 @@ from Utilities.track import Track, ncSaveTracks
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
-
 TRACKFILE_COLS = ('Indicator', 'CycloneNumber', 'Year', 'Month', 
                   'Day', 'Hour', 'Minute', 'TimeElapsed', 'Datetime',
                   'Longitude', 'Latitude', 'Speed', 'Bearing', 
@@ -118,6 +117,7 @@ def interpolate(track, delta, interpolation_type=None):
 
         npEnv = interp1d(timestep, track.EnvPressure, kind='linear')(newtime)
         nrMax = interp1d(timestep, track.rMax, kind='linear')(newtime)
+
     else:
         if interpolation_type == 'akima':
             # Use the Akima interpolation method:
@@ -180,7 +180,7 @@ def interpolate(track, delta, interpolation_type=None):
         npEnv = interp1d(timestep, track.EnvPressure, kind='linear')(newtime)
         nrMax = interp1d(timestep, track.rMax, kind='linear')(newtime)
         nbeta = interp1d(timestep, track.beta, kind='linear')(newtime)
-    
+
     if len(nLat) >= 2:
         bear_, dist_ = latLon2Azi(nLat, nLon, 1, azimuth=0)
         nthetaFm = np.zeros(newtime.size, dtype=float)
@@ -216,6 +216,7 @@ def interpolate(track, delta, interpolation_type=None):
                         [newindex, newTCID, nYear, nMonth, nDay, nHour, nMin,
                            newtime, newdates, nLon, nLat, nvFm, nthetaFm,
                            npCentre, nwSpd, nrMax, npEnv, nbeta]):
+
         newdata[key] = val
     newtrack = Track(newdata)
     newtrack.trackId = track.trackId

@@ -295,8 +295,9 @@ class HollandWindProfile(WindProfileModel):
 
     def __init__(self, lat, lon, eP, cP, rMax, beta,
                  windSpeedModel=HollandWindSpeed):
-        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax, beta,
-                                  windSpeedModel)
+
+        WindProfileModel.__init__(self, lat, lon, eP, cP, rMax,
+                                  beta, windSpeedModel)
         self.beta = beta
 
     def secondDerivative(self):
@@ -1069,7 +1070,7 @@ class KepertWindField(WindFieldModel):
         
         # Symmetric surface wind component
         u0s = np.sign(self.f) * albe * A0.real
-        v0s =                          A0.imag
+        v0s = A0.imag
 
         Am = -(psi * (1 + 2 * albe + (1 + i) * (1 + albe) * eta) * Umod) / \
              (albe * ((2 + 2 * i) * (1 + eta * psi) + 3 * psi + 3* i * eta))
@@ -1089,11 +1090,11 @@ class KepertWindField(WindFieldModel):
         Ap[ind] = ApIII[ind]
 
         # Second asymmetric surface component
-        ups =            albe * (Ap * np.exp(i * lam * np.sign(self.f))).real
+        ups = albe * (Ap * np.exp(i * lam * np.sign(self.f))).real
         vps = np.sign(self.f) * (Ap * np.exp(i * lam * np.sign(self.f))).imag
 
         # Total surface wind in (moving coordinate system)
-        us =     u0s + ups + ums
+        us = u0s + ups + ums
         vs = V + v0s + vps + vms
 
         usf = us + Umod * np.cos(lam - thetaFm)

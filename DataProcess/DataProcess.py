@@ -166,7 +166,7 @@ class DataProcess(object):
         config = ConfigParser()
         config.read(self.configFile)
 
-        self.logger.info("Running %s" % flModuleName())
+        self.logger.info("Running", flModuleName())
 
         if config.has_option('DataProcess', 'InputFile'):
             inputFile = config.get('DataProcess', 'InputFile')
@@ -182,7 +182,7 @@ class DataProcess(object):
         if len(os.path.dirname(inputFile)) == 0:
             inputFile = pjoin(self.tcrm_input_dir, inputFile)
 
-        self.logger.info("Processing %s" % inputFile)
+        self.logger.info("Processing", inputFile)
 
         self.source = config.get('DataProcess', 'Source')
 
@@ -218,7 +218,7 @@ class DataProcess(object):
         except (ValueError, KeyError):
 
             try:
-                self.logger.info("Filtering input data by season: season > %d"%startSeason)
+                self.logger.info("Filtering input data by season: season > ", startSeason)
                 # Find indicies that satisfy minimum season filter
                 idx = np.where(inputData['season'] >= startSeason)[0]
                 # Filter records:
@@ -343,7 +343,7 @@ class DataProcess(object):
         except (ValueError, KeyError):
             pass
 
-        self.logger.info("Completed %s" % flModuleName())
+        self.logger.info("Completed ", flModuleName())
         if self.progressbar is not None:
             self.progressbar.update(0.5)
 
@@ -384,9 +384,9 @@ class DataProcess(object):
         all_lon_lat = pjoin(self.processPath, 'all_lon_lat')
 
         # Output the lon & lat of cyclone origins
-        self.logger.debug('Outputting data into %s' % init_lon_lat)
-        self.logger.debug('Outputting data into %s' % origin_lon_lat)
-        self.logger.debug('Outputting data into %s' % all_lon_lat)
+        self.logger.debug('Outputting data into ', init_lon_lat)
+        self.logger.debug('Outputting data into ', origin_lon_lat)
+        self.logger.debug('Outputting data into ', all_lon_lat)
 
         header = 'Longitude, Latitude, LSFlag'
         if self.ncflag:
@@ -406,7 +406,7 @@ class DataProcess(object):
 
             # Output all cyclone positions:
             cyclone_tracks = pjoin(self.processPath, 'cyclone_tracks')
-            self.logger.debug('Outputting data into %s' % cyclone_tracks)
+            self.logger.debug('Outputting data into ', cyclone_tracks)
             header = 'Cyclone Origin,Longitude,Latitude, LSflag'
             flSaveFile(cyclone_tracks,
                        np.transpose([indicator, lon, lat, lsflag]),
@@ -445,16 +445,16 @@ class DataProcess(object):
             self.data['bearing_no_init'] = bearingNoInit
         else:
             all_bearing = pjoin(self.processPath, 'all_bearing')
-            self.logger.debug('Outputting data into %s' % all_bearing)
+            self.logger.debug('Outputting data into ', all_bearing)
             header = 'all cyclone bearing in degrees'
             flSaveFile(all_bearing, bear, header, fmt='%6.2f')
 
             init_bearing = pjoin(self.processPath, 'init_bearing')
-            self.logger.debug('Outputting data into %s' % init_bearing)
+            self.logger.debug('Outputting data into ', init_bearing)
             header = 'initial cyclone bearing in degrees'
             flSaveFile(init_bearing, initBearing, header, fmt='%6.2f')
             bearing_no_init = pjoin(self.processPath, 'bearing_no_init')
-            self.logger.debug('Outputting data into %s' % bearing_no_init)
+            self.logger.debug('Outputting data into ', bearing_no_init)
             header = 'cyclone bearings without initial ones in degrees'
             flSaveFile(bearing_no_init, bearingNoInit, header, fmt='%6.2f')
 
@@ -495,17 +495,17 @@ class DataProcess(object):
             all_speed = pjoin(self.processPath, 'all_speed')
             speed_no_init = pjoin(self.processPath, 'speed_no_init')
             # Extract all speeds
-            self.logger.debug('Outputting data into %s' % all_speed)
+            self.logger.debug('Outputting data into ', all_speed)
             header = 'all cyclone speed in m/s'
             flSaveFile(all_speed, speed, header, fmt='%6.2f')
 
             # Extract initial speeds
-            self.logger.debug('Outputting data into %s' % init_speed)
+            self.logger.debug('Outputting data into ', init_speed)
             header = 'initial cyclone speed in m/s'
             flSaveFile(init_speed, initSpeed, header, fmt='%f')
 
             # Extract speeds, excluding initial speeds
-            self.logger.debug('Outputting data into %s' % speed_no_init)
+            self.logger.debug('Outputting data into ', speed_no_init)
             header = 'cyclone speed without initial ones in m/s'
             flSaveFile(speed_no_init, speedNoInit, header, fmt='%6.2f')
 
@@ -535,17 +535,17 @@ class DataProcess(object):
             all_pressure = pjoin(self.processPath, 'all_pressure')
             pressure_no_init = pjoin(self.processPath, 'pressure_no_init')
             # Extract all pressure
-            self.logger.debug('Outputting data into %s' % all_pressure)
+            self.logger.debug('Outputting data into ', all_pressure)
             header = 'all cyclone pressure in hPa'
             flSaveFile(all_pressure, pressure, header, fmt='%7.2f')
 
             # Extract initial pressures
-            self.logger.debug('Outputting data into %s' % init_pressure)
+            self.logger.debug('Outputting data into ', init_pressure)
             header = 'initial cyclone pressure in hPa'
             flSaveFile(init_pressure, initPressure, header, fmt='%7.2f')
 
             # Extract pressures, excluding initial times
-            self.logger.debug('Outputting data into %s' % pressure_no_init)
+            self.logger.debug('Outputting data into ', pressure_no_init)
             header = 'cyclone pressure without initial ones in hPa'
             flSaveFile(pressure_no_init, pressureNoInit, header, fmt='%7.2f')
 
@@ -589,7 +589,7 @@ class DataProcess(object):
             self.data['pressureRate'] = pressureRate
         else:
             pressure_rate = pjoin(self.processPath, 'pressure_rate')
-            self.logger.debug('Outputting data into %s' % pressure_rate)
+            self.logger.debug('Outputting data into ', pressure_rate)
             header = 'All pressure change rates (hPa/hr)'
             flSaveFile(pressure_rate, pressureRate, header, fmt='%6.2f')
 
@@ -631,7 +631,7 @@ class DataProcess(object):
             self.data['bearingRate'] = bearingRate
         else:
             bearing_rate = pjoin(self.processPath, 'bearing_rate')
-            self.logger.debug('Outputting data into %s' % bearing_rate)
+            self.logger.debug('Outputting data into ', bearing_rate)
             header = 'All bearing change rates (degrees/hr)'
             flSaveFile(bearing_rate, bearingRate, header, fmt='%6.2f')
 
@@ -674,7 +674,7 @@ class DataProcess(object):
             self.data['speedRate'] = speedRate
         else:
             speed_rate = pjoin(self.processPath, 'speed_rate')
-            self.logger.debug('Outputting data into %s' % speed_rate)
+            self.logger.debug('Outputting data into ', speed_rate)
             header = 'All speed change rates (km/hr/hr)'
             flSaveFile(speed_rate, speedRate, header, fmt='%6.2f')
 
@@ -690,7 +690,7 @@ class DataProcess(object):
             self.data['windspeed'] = windSpeed
         else:
             wind_speed = pjoin(self.processPath, 'wind_speed')
-            self.logger.debug('Outputting data into %s' % wind_speed)
+            self.logger.debug('Outputting data into ', wind_speed)
             header = 'Maximum wind speed (m/s)'
             flSaveFile(wind_speed, windSpeed, header, fmt='%6.2f')
 
@@ -716,17 +716,17 @@ class DataProcess(object):
             all_rmax = pjoin(self.processPath, 'all_rmax')
             rmax_no_init = pjoin(self.processPath, 'rmax_no_init')
             # extract all rmax
-            self.logger.debug('Outputting data into %s' % all_rmax)
+            self.logger.debug('Outputting data into ',all_rmax)
             header = 'rMax (km)'
             flSaveFile(all_rmax, rmax, header, fmt='%6.2f')
 
             # extract initial rmax
-            self.logger.debug('Outputting data into %s' % init_rmax)
+            self.logger.debug('Outputting data into ', init_rmax)
             header = 'initial rmax (km)'
             flSaveFile(init_rmax, initrmax, header, fmt='%6.2f')
 
             # extract rmax no init
-            self.logger.debug('Outputting data into %s' % rmax_no_init)
+            self.logger.debug('Outputting data into ', rmax_no_init)
             header = 'rmax excluding initial ones (km)'
             flSaveFile(rmax_no_init, rmaxNoInit, header, fmt='%6.2f')
 
@@ -758,7 +758,7 @@ class DataProcess(object):
 
         # Mask rates corresponding to initial times and times when
         # the rmax is known to be missing.
-        self.logger.debug('Outputting data into %s' %
+        self.logger.debug('Outputting data into ',
                           pjoin(self.processPath, 'rmax_rate'))
         np.putmask(rmaxRate, indicator, sys.maxint)
         np.putmask(rmaxRate, rmax >= sys.maxint, sys.maxint)
@@ -793,8 +793,8 @@ class DataProcess(object):
             flSaveFile(frequency, np.transpose([bins[:-1], n]),
                        header, fmt='%6.2f')
 
-            self.logger.info("Mean annual frequency: %5.1f" % np.mean(n))
-            self.logger.info("Standard deviation: %5.1f" % np.std(n))
+            self.logger.info("Mean annual frequency: ", np.mean(n))
+            self.logger.info("Standard deviation: ", np.std(n))
 
     def _juliandays(self, jdays, indicator, years):
         """

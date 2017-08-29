@@ -44,7 +44,6 @@ LOG.addHandler(logging.NullHandler())
 
 np.random.seed(123456789)
 """
-
 TRACKFILE_COLS = ('Indicator', 'CycloneNumber', 'Year', 'Month',
                   'Day', 'Hour', 'Minute', 'TimeElapsed', 'Longitude',
                   'Latitude', 'Speed', 'Bearing', 'CentralPressure',
@@ -202,8 +201,8 @@ def getSpeedBearing(index, lon, lat, deltatime, ieast=1,
 
     return speed, bearing
 
+def maxWindSpeed(index, deltatime, lon, lat, pressure, penv, beta = None,
 
-def maxWindSpeed(index, deltatime, lon, lat, pressure, penv, beta=None,
                  gustfactor=0.9524):
     """
     Calculate the 10-minute-mean maximum wind speed from the central
@@ -265,10 +264,11 @@ def maxWindSpeed(index, deltatime, lon, lat, pressure, penv, beta=None,
     rho = prmw * 100. / (tvs * 287.04)
 
     chi = 0.6 * (1.0 - deltap / 215.)
-    if not beta:
+
+    if not beta.any:
         beta = -0.000044 * np.power(deltap, 2.) + \
-               0.01 * deltap + 0.03 * dpdt - 0.014 * np.abs(lat) + \
-               0.15 * np.power(speed, chi) + 1.
+                0.01 * deltap + 0.03 * dpdt - 0.014 * np.abs(lat) + \
+                0.15 * np.power(speed, chi) + 1.
 
     # Holland's P-W relation derives a 1-minute mean wind speed, so we often
     # need to convert to some other averaging period. I use the recommendations
@@ -915,9 +915,11 @@ def loadTrackFile(configFile, trackFile, source, missingValue=0,
 
     if 'beta' in inputData.dtype.names:
         beta = np.array(inputData['beta'], 'd')
+        LOG.debug("beta found in the input file")
     else:
-        beta = np.ones(len(indicator)) * config.get('WindfieldInterface','beta')
-
+        beta_vals = config.getfloat('WindfieldInterface','beta')
+        beta = np.ones(len(indicator)) * beta_vals
+        LOG.debug("no beta found in the input file")
 
     speed, bearing = getSpeedBearing(indicator, lon, lat, dt,
                                      missingValue=missingValue)

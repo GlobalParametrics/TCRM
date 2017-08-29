@@ -99,7 +99,7 @@ class WindfieldAroundTrack(object):
 
     def __init__(self, track, profileType='powell', windFieldType='kepert',
                  beta=1.3, beta1=1.5, beta2=1.4, thetaMax=70.0,
-                 margin=2.0, resolution=0.05, gustFactor=1.188,
+                 margin=2.0, resolution=0.05, gustFactor=1.35,
                  gridLimit=None, domain='bounded'):
         self.track = track
         self.profileType = profileType
@@ -180,6 +180,7 @@ class WindfieldAroundTrack(object):
         vFm = convert(self.track.Speed[i], 'kph', 'mps')
         thetaFm = bearing2theta(self.track.Bearing[i] * np.pi/180.)
         thetaMax = self.thetaMax
+        beta = self.track.beta[i]
 
         #FIXME: temporary way to do this
         cls = windmodels.profile(self.profileType)
