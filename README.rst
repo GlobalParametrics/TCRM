@@ -100,3 +100,16 @@ License information
 See the file `LICENSE.rst <https://github.com/GeoscienceAustralia/tcrm/blob/master/LICENSE.rst>`_ 
 for information on the history of this software, terms and conditions for usage,
 and a DISCLAIMER OF ALL WARRANTIES.
+
+Contacts
+========
+Geoscience Australia staff:  
+
+**Craig Arthur**  
+craig.arthur@ga.gov.au  
+
+**Dale Roberts**  
+dale.roberts@ga.gov.au  
+
+**Claire Krause**  
+claire.krause@ga.gov.au  
