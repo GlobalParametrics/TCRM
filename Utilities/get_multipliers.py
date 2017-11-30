@@ -121,29 +121,14 @@ def checkOutputFolders(OUTPUT_dir):
         os.makedirs(OUTPUT_dir + '/terrain')           
         os.makedirs(OUTPUT_dir + '/topographic')
 
-def copyTranslateMultipliers(configFile, type_mapping, output_path):
+def copyTranslateMultipliers(type_mapping, output_path):
     '''  
     Copy wind multipliers from directory specified in the configuration file, to an
     output directory.
     Once the files have been copied, they are translated into Geotiffs
 
-    :param str configFile: Path to configuration file
     :param str type_mapping: dict containing the three wind multiplier inputs
     '''
-    config = ConfigParser()
-    config.read(configFile)
-
-    # Check for wind multiplier file path in config file
-    if config.has_option('Input', 'Multipliers'):
-        WMPath = config.get('Input', 'Multipliers')
-        log.info('Using multiplier files from %s', WMPath)
-    else:
-        log.info('Using default multiplier files from /g/data/fj6/multipliers/')
-        WMPath = '/g/data/fj6/multipliers/'
-
-    tiles = config.get('Input', 'Tiles')
-    tiles = [item.strip() for item in tiles.split(',')]
-    log.info('Multipliers will be written out to %s', output_path)
     checkOutputFolders(output_path)
     
     for tile in tiles:
@@ -208,7 +193,8 @@ def combineDirections(dirns, output_path):
 
         driver = gdal.GetDriverByName("GTiff")
         log.info('Writing m4_%s.tiff', dirn)
-        dsOut = driver.Create('{0}m4_{1}.tif'.format(output_path, dirn), ds1.RasterXSize, ds1.RasterYSize, 1, band1.DataType)
+        dsOut = driver.Create('{0}m4_{1}.tif'.format(output_path, dirn), ds1.RasterXSize, 
+                              ds1.RasterYSize, 1, band1.DataType)
         CopyDatasetInfo(ds1,dsOut)
         bandOut=dsOut.GetRasterBand(1)
         bandOut.SetNoDataValue(-9999)
@@ -224,6 +210,18 @@ def main(configFile):
     config = ConfigParser()
     config.read(configFile)
     output_path = config.get('Output', 'Path')
+
+    # Check for wind multiplier file path in config file
+    if config.has_option('Input', 'Multipliers'):
+        WMPath = config.get('Input', 'Multipliers')
+        log.info('Using multiplier files from %s', WMPath)
+    else:
+        log.info('Using default multiplier files from /g/data/fj6/multipliers/')
+        WMPath = '/g/data/fj6/multipliers/'
+
+    tiles = config.get('Input', 'Tiles')
+    tiles = [item.strip() for item in tiles.split(',')]
+    log.info('Multipliers will be written out to %s', output_path)
     
     type_mapping = {'shielding': 'Ms', 'terrain': 'Mz', 'topographic': 'Mt'}
     dirns = ['e', 'n', 'ne', 'nw', 's', 'se', 'sw', 'w']
